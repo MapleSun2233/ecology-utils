@@ -5,6 +5,8 @@ import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.api.doc.detail.service.DocSaveService;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import weaver.conn.RecordSet;
@@ -16,10 +18,12 @@ import weaver.file.ImageFileManager;
 import weaver.general.BaseBean;
 import weaver.hrm.User;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLDecoder;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -293,5 +297,23 @@ public class DocUtil {
         manager.setIsextfile("1");
         manager.setImagefilename(fileName);
         manager.AddDocImageInfo();
+    }
+
+    /**
+     * 打包指定的imageFile文件为zip文件，返回字节
+     * @param imageFileManagerList imageFileList
+     * @return byte[]
+     */
+    public static byte[] zipImageFiles(List<ImageFileManager> imageFileManagerList) throws IOException{
+        ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
+        ZipArchiveOutputStream zipOutput = new ZipArchiveOutputStream(byteOutput);
+        for (ImageFileManager ifm : imageFileManagerList) {
+            zipOutput.putArchiveEntry(new ZipArchiveEntry(ifm.getImageFileName()));
+            zipOutput.write(IoUtil.readBytes(ifm.getInputStream()));
+            zipOutput.closeArchiveEntry();
+        }
+        zipOutput.flush();
+        zipOutput.close();
+        return byteOutput.toByteArray();
     }
 }

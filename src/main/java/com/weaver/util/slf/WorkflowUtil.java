@@ -1,6 +1,7 @@
 package com.weaver.util.slf;
 
 import cn.hutool.core.map.MapUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONObject;
 import com.engine.common.util.ServiceUtil;
@@ -9,6 +10,7 @@ import com.engine.workflow.entity.publicApi.ReqOperateRequestEntity;
 import com.engine.workflow.publicApi.WorkflowRequestOperatePA;
 import com.engine.workflow.publicApi.impl.WorkflowRequestOperatePAImpl;
 import weaver.conn.RecordSet;
+import weaver.general.BaseBean;
 import weaver.hrm.User;
 import weaver.soa.workflow.request.DetailTable;
 import weaver.soa.workflow.request.Property;
@@ -28,38 +30,34 @@ import java.util.stream.Collectors;
  * 流程工具
  */
 public class WorkflowUtil {
+    private static final BaseBean UTILS = new BaseBean();
     /**
-     * 提交流程至下一个节点
+     * 提交流程的指定节点至下一个节点
      * @param requestId requestId
      * @param fields 字段赋值列表
-     * @return jsonObject
+     * @return boolean 操作结果
      */
-    public static JSONObject submitWorkflow(int requestId, List<WorkflowRequestTableField> fields) {
+    public static boolean submitWorkflow(int requestId, int nodeId,List<WorkflowRequestTableField> fields) {
         RecordSet rs = new RecordSet();
-        rs.executeQuery("select userid from workflow_currentoperator where requestid=? and isremark=0", requestId);
-        JSONObject res = new JSONObject();
-        res.put("status", true);
-        if (rs.next()) {
+        WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
+        if (ObjectUtil.isNull(operatePa)) {
+            UTILS.writeLog("WorkflowRequestOperatePA获取失败");
+            return false;
+        }
+        while (rs.executeQuery("select userid from workflow_currentoperator a left join workflow_nodebase b on a.nodeid = b.id where a.requestid = ? and a.nodeid = ? and isremark = 0", requestId, nodeId) && rs.next()) {
             User user = User.getUser(rs.getInt("userid"), 0);
-            WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
-            if (operatePa != null) {
                 ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
                 entity.setRequestId(requestId);
                 entity.setUserId(user.getUID());
                 entity.setClientIp("0:0:0:0:0:0:0:1");
                 entity.setMainData(fields);
                 PAResponseEntity entityResult = operatePa.submitRequest(user, entity);
-                res.put("status", entityResult.getCode().getStatusCode() == 1);
-                res.put("msg", entityResult.getCode().getMessage());
-            } else {
-                res.put("status", false);
-                res.put("msg", "WorkflowRequestOperatePA获取失败");
-            }
-        } else {
-            res.put("status", false);
-            res.put("msg", "未找到当前流程操作者");
+                if (entityResult.getCode().getStatusCode() != 1) {
+                    UTILS.writeLog(entityResult.getCode().getMessage());
+                    return false;
+                }
         }
-        return res;
+        return true;
     }
 
     /**
