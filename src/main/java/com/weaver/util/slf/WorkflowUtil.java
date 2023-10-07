@@ -18,10 +18,7 @@ import weaver.soa.workflow.request.RequestInfo;
 import weaver.workflow.request.RequestManager;
 import weaver.workflow.webservices.WorkflowRequestTableField;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -176,5 +173,20 @@ public class WorkflowUtil {
 
     public static boolean isReject(RequestInfo request) {
         return StrUtil.equals("reject", request.getRequestManager().getSrc());
+    }
+
+    /**
+     * 获取停留在指定节点的流程id
+     * @param nodeId 节点id
+     * @return 流程id列表
+     */
+    public static List<Integer> getRequestIdListByCurrentNodeId(int nodeId) {
+        RecordSet rs = new RecordSet();
+        rs.executeQuery("select requestid from workflow_requestbase where currentnodeid = ?", nodeId);
+        List<Integer> result = new ArrayList<>(rs.getCounts());
+        while (rs.next()) {
+            result.add(rs.getInt("requestid"));
+        }
+        return result;
     }
 }
