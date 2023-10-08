@@ -189,4 +189,22 @@ public class WorkflowUtil {
         }
         return result;
     }
+
+    /**
+     * 根据requestId获取流程的基本信息
+     * @param requestId requestId
+     * @return map
+     */
+    public static Map<String, String> getBaseInfoByRequestId(int requestId) {
+        RecordSet rs = new RecordSet();
+        if (rs.executeQuery("select a.requestid as requestId, b.id as workflowId, c.id as formId, c.tablename as tableName from (select requestid, workflowid from workflow_requestbase where requestid = ?) a left join workflow_base b on a.workflowid = b.id left join workflow_bill c on b.formid = c.id", requestId) && rs.next()) {
+            MapUtil.builder(new HashMap<String, String>(4))
+                    .put("requestId", rs.getString("requestId"))
+                    .put("workflowId", rs.getString("workflowId"))
+                    .put("formId", rs.getString("formId"))
+                    .put("tableName", rs.getString("tableName"))
+                    .build();
+        }
+        return null;
+    }
 }
