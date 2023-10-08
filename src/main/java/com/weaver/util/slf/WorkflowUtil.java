@@ -31,10 +31,12 @@ public class WorkflowUtil {
     /**
      * 提交流程的指定节点至下一个节点
      * @param requestId requestId
+     * @param nodeId nodeId 流转指定节点，防止无差别提交
      * @param fields 字段赋值列表
+     * @param remark 签字意见
      * @return boolean 操作结果
      */
-    public static boolean submitWorkflow(int requestId, int nodeId,List<WorkflowRequestTableField> fields) {
+    public static boolean submitWorkflow(int requestId, int nodeId,List<WorkflowRequestTableField> fields, String remark) {
         RecordSet rs = new RecordSet();
         WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
         if (ObjectUtil.isNull(operatePa)) {
@@ -48,6 +50,7 @@ public class WorkflowUtil {
                 entity.setUserId(user.getUID());
                 entity.setClientIp("0:0:0:0:0:0:0:1");
                 entity.setMainData(fields);
+                entity.setRemark(remark);
                 PAResponseEntity entityResult = operatePa.submitRequest(user, entity);
                 if (entityResult.getCode().getStatusCode() != 1) {
                     UTILS.writeLog(entityResult.getCode().getMessage());
@@ -205,6 +208,6 @@ public class WorkflowUtil {
                     .put("tableName", rs.getString("tableName"))
                     .build();
         }
-        return null;
+        return MapUtil.newHashMap();
     }
 }
