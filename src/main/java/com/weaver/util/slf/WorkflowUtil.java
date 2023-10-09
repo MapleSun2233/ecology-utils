@@ -50,7 +50,7 @@ public class WorkflowUtil {
                 entity.setUserId(user.getUID());
                 entity.setClientIp("0:0:0:0:0:0:0:1");
                 entity.setMainData(fields);
-                entity.setRemark(remark);
+                entity.setRemark(remark.replaceAll("\"", "\\\"").replaceAll("'", "\\'").replaceAll("\\?", StrUtil.EMPTY));
                 PAResponseEntity entityResult = operatePa.submitRequest(user, entity);
                 if (entityResult.getCode().getStatusCode() != 1) {
                     UTILS.writeLog(entityResult.getCode().getMessage());
