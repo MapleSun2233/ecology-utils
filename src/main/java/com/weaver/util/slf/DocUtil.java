@@ -23,8 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLDecoder;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * @author slf
@@ -301,19 +300,71 @@ public class DocUtil {
 
     /**
      * 打包指定的imageFile文件为zip文件，返回字节
+     * 打包去重策略：
+     * 1. 比较是否是同一文件
+     * 2. 如果同一文件且文件名相同，视为重复，跳过
+     * 3. 如果同一文件不同文件名，视为不重复，继续检查文件名是否与其他文件重复，正常打包
+     * 4. 如果不同文件重复文件名，文件名重命名加入编号
+     * 5. 不同文件不重复文件名，直接写入
      * @param imageFileManagerList imageFileList
      * @return byte[]
      */
     public static byte[] zipImageFiles(List<ImageFileManager> imageFileManagerList) throws IOException{
+        Map<Integer, Set<String>> fileRecord = new HashMap<>(imageFileManagerList.size());
+        Map<String, Integer> fileNameRecord = new HashMap<>();
         ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
         ZipArchiveOutputStream zipOutput = new ZipArchiveOutputStream(byteOutput);
         for (ImageFileManager ifm : imageFileManagerList) {
-            zipOutput.putArchiveEntry(new ZipArchiveEntry(ifm.getImageFileName()));
-            zipOutput.write(IoUtil.readBytes(ifm.getInputStream()));
+            byte[] fileBytes = IoUtil.readBytes(ifm.getInputStream());
+            int byteHashCode = Arrays.hashCode(fileBytes);
+            String fileName = ifm.getImageFileName();
+            if (fileRecord.containsKey(byteHashCode)) {
+                // 存在相同文件
+                if (fileRecord.get(byteHashCode).contains(fileName)) {
+                    // 相同文件且重名，跳过
+                    continue;
+                } else {
+                    // 相同文件不重名
+                    // 继续处理是否与其他文件重名
+                    fileName = handleDupFileName(fileNameRecord, fileName);
+                    // 添加文件记录
+                    fileRecord.get(byteHashCode).add(fileName);
+                }
+            } else {
+                // 不存在相同文件
+                fileName = handleDupFileName(fileNameRecord, fileName);
+                // 添加文件记录
+                fileRecord.put(byteHashCode, new HashSet<>(Collections.singletonList(fileName)));
+            }
+            // 添加到zip
+            zipOutput.putArchiveEntry(new ZipArchiveEntry(fileName));
+            zipOutput.write(fileBytes);
             zipOutput.closeArchiveEntry();
         }
         zipOutput.flush();
         zipOutput.close();
         return byteOutput.toByteArray();
+    }
+
+    /**
+     * 处理重名文件命名
+     * @param fileNameRecord 文件名记录
+     * @param fileName 带拓展名的文件名
+     * @return fileName
+     */
+    private static String handleDupFileName(Map<String, Integer> fileNameRecord, String fileName) {
+        if (fileNameRecord.containsKey(fileName)) {
+            // 重名
+            int nextIndex = fileNameRecord.get(fileName) + 1;
+            // 记录重名
+            fileNameRecord.put(fileName, nextIndex);
+            // 生成新文件名
+            int dotIndex= fileName.lastIndexOf(StrUtil.DOT);
+            return fileName.substring(0, dotIndex) + StrUtil.format("({})", nextIndex) + fileName.substring(dotIndex);
+        } else {
+            // 不重名，首次记录文件名
+            fileNameRecord.put(fileName, 0);
+        }
+        return fileName;
     }
 }
