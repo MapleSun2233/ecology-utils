@@ -78,10 +78,10 @@ public class ModelUtil {
             if (data.size() % BATCH_NUM > 0) {
                 batchCount ++;
             }
-            Integer oldMaxId = Optional.ofNullable(getMaxId(config.getLocalTable(), rs)).orElse(0);
             int skipCount = 0;
             int updateCount = 0;
             for (int b = 0; b < batchCount; b++) {
+                int oldMaxId = getMaxId(config.getLocalTable(), rs);
                 StringBuilder sb = new StringBuilder(buildInsertSqlPrefix(config));
                 int boundary = b * BATCH_NUM + BATCH_NUM;
                 for (int i = b * BATCH_NUM; i < boundary && i < data.size(); i++) {
@@ -100,8 +100,8 @@ public class ModelUtil {
                     sb.deleteCharAt(sb.length() - 1);
                     rs.execute(sb.toString());
                 }
+                buildUfAuthBatch(config, oldMaxId, rs);
             }
-            buildUfAuthBatch(config, oldMaxId, rs);
             if (isUpdate) {
                 UTILS.writeLog("更新数据" + updateCount + "条");
             } else {
@@ -313,7 +313,7 @@ public class ModelUtil {
         if (ObjectUtil.isNull(config.getFormModeId())) {
             return;
         }
-        Integer id = getMaxId(config.getLocalTable(), rs);
+        int id = getMaxId(config.getLocalTable(), rs);
         if (ObjectUtil.isNull(id)) {
             return;
         }
@@ -342,7 +342,7 @@ public class ModelUtil {
         }
         ModeRightInfo moderightinfo = new ModeRightInfo();
         moderightinfo.setNewRight(true);
-        moderightinfo.editModeDataShare(creatorMap, config.getFormModeId(), creatorMap.keySet().stream().collect(Collectors.toList()));
+        moderightinfo.editModeDataShare(creatorMap, config.getFormModeId(), new ArrayList<>(creatorMap.keySet()));
     }
 
     /**
@@ -352,12 +352,12 @@ public class ModelUtil {
      * @param rs    数据库链接
      * @return id
      */
-    private static Integer getMaxId(String table, RecordSet rs) {
+    private static int getMaxId(String table, RecordSet rs) {
         String sql = "select max(id)  from " + table;
         if (rs.execute(sql) && rs.next()) {
             return rs.getInt(1);
         }
-        return null;
+        return 0;
     }
 
     /**
