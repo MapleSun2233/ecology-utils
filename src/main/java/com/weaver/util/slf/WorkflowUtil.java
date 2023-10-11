@@ -201,7 +201,7 @@ public class WorkflowUtil {
     public static Map<String, String> getBaseInfoByRequestId(int requestId) {
         RecordSet rs = new RecordSet();
         if (rs.executeQuery("select a.requestid as requestId, b.id as workflowId, c.id as formId, c.tablename as tableName from (select requestid, workflowid from workflow_requestbase where requestid = ?) a left join workflow_base b on a.workflowid = b.id left join workflow_bill c on b.formid = c.id", requestId) && rs.next()) {
-            MapUtil.builder(new HashMap<String, String>(4))
+            return MapUtil.builder(new HashMap<String, String>(4))
                     .put("requestId", rs.getString("requestId"))
                     .put("workflowId", rs.getString("workflowId"))
                     .put("formId", rs.getString("formId"))
@@ -209,5 +209,29 @@ public class WorkflowUtil {
                     .build();
         }
         return MapUtil.newHashMap();
+    }
+
+    /**
+     * 根据workflowId获取节点列表
+     * @param workflowId workflowId
+     * @return nodeList
+     */
+    public static List<Map<String, String>> getNodeList(int workflowId) {
+        RecordSet rs = new RecordSet();
+        if (rs.executeQuery("SELECT a.nodeid as nodeid, b.nodename as nodename, b.isstart as isstart, b.isreject as isreject, b.isend as isend FROM workflow_flownode a left join workflow_nodebase b on a.nodeid = b.id WHERE workflowid =  ?", workflowId)) {
+            List<Map<String, String>> result = new ArrayList<>(rs.getCounts());
+            while (rs.next()) {
+                result.add(MapUtil.builder(new HashMap<String, String>(5))
+                                .put("nodeId", rs.getString("nodeid"))
+                                .put("nodeName", rs.getString("nodename"))
+                                .put("isStart", rs.getString("isstart"))
+                                .put("isReject", rs.getString("isreject"))
+                                .put("isEnd", rs.getString("isend"))
+                                .build()
+                );
+            }
+            return result;
+        }
+        return Collections.emptyList();
     }
 }

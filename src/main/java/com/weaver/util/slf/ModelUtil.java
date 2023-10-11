@@ -3,12 +3,14 @@ package com.weaver.util.slf;
 import cn.hutool.core.date.DatePattern;
 import cn.hutool.core.date.DateTime;
 import cn.hutool.core.map.MapUtil;
+import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import weaver.conn.RecordSet;
+import weaver.conn.constant.DBConstant;
 import weaver.formmode.setup.ModeRightInfo;
 import weaver.general.BaseBean;
 import com.weaver.util.slf.entity.SyncWriteDataConfig;
@@ -26,82 +28,59 @@ public class ModelUtil {
     private static final String CHECK_EXISTS_IN_DETAIL_SQL = "select count(id) as count from {} where mainid = {} and {} = '{}'";
     private static final String QUERY_NEW_ID_SQL = "select id from {} where id > {}";
     private static final String CLEAN_DETAIL_SQL = "delete from {} where mainid={}";
-    private static final String MODE_TABLE_STATIC_FIELDS = ",formmodeid,modedatacreater,modedatacreatertype,modedatacreatedate,modedatacreatetime,modedatamodifydatetime";
-    private static final int BATCH_NUM = 500;
+    private static final String[] MODE_TABLE_STATIC_FIELDS = new String[]{"formmodeid", "modedatacreater", "modedatacreatertype", "modedatacreatedate", "modedatacreatetime", "modedatamodifydatetime"};
 
     private static final BaseBean UTILS = new BaseBean();
+
     /**
-     * 写入数据到建模表
+     * 批量写入数据到建模表
      *
-     * @param config 配置
-     * @param data 被写入数据
-     */
-    public static void writeData(SyncWriteDataConfig config, JSONArray data) {
-        UTILS.writeLog("开始写入数据...");
-        RecordSet rs = new RecordSet();
-        String modeStaticInfo = StrUtil.format("'{}','{}','{}','{}','{}','{}'",
-                config.getFormModeId(), 1, 0,
-                DatePattern.NORM_DATE_FORMAT.format(DateTime.now()),
-                DatePattern.NORM_TIME_FORMAT.format(DateTime.now()),
-                DatePattern.NORM_DATETIME_FORMAT.format(DateTime.now()));
-        try {
-            for (int i = 0; i < data.size(); i++) {
-                if (checkExists(config, data.getJSONObject(i).getString(config.getRemoteOnlyCheckField()), rs)) {
-                    rs.execute(buildUpdateSql(config, data.getJSONObject(i)));
-                } else {
-                    rs.execute(buildInsertSql(config, data.getJSONObject(i), modeStaticInfo));
-                    buildUfAuth(config, rs);
-                }
-            }
-            UTILS.writeLog("写入数据" + data.size() + "条，写入数据完成...");
-        } catch (Exception e) {
-            UTILS.writeLog("写入数据错误，异常消息:" + e.getMessage());
-        }
-    }
-    /**
-     * 批量写入数据到建模表，不支持Oracle数据库
-     * @param config 配置
-     * @param data 被写入数据
+     * @param config   配置
+     * @param data     被写入数据
      * @param isUpdate 是否更新
      */
     public static void batchWriteData(SyncWriteDataConfig config, JSONArray data, boolean isUpdate) {
         UTILS.writeLog("开始写入数据...");
         RecordSet rs = new RecordSet();
-        String modeStaticInfo = StrUtil.format("'{}','{}','{}','{}','{}','{}'",
-                config.getFormModeId(), 1, 0,
+        List<Object> modeStaticInfo = Arrays.asList(config.getFormModeId(), 1, 0,
                 DatePattern.NORM_DATE_FORMAT.format(DateTime.now()),
                 DatePattern.NORM_TIME_FORMAT.format(DateTime.now()),
                 DatePattern.NORM_DATETIME_FORMAT.format(DateTime.now()));
         try {
-            // 计算批次
-            int batchCount = data.size() / BATCH_NUM;
-            if (data.size() % BATCH_NUM > 0) {
-                batchCount ++;
-            }
+            // 构建插入sql
+            String insertSql = buildInsertSql(config);
+            List<List> params = new ArrayList<>(data.size());
             int skipCount = 0;
             int updateCount = 0;
-            for (int b = 0; b < batchCount; b++) {
-                int oldMaxId = getMaxId(config.getLocalTable(), rs);
-                StringBuilder sb = new StringBuilder(buildInsertSqlPrefix(config));
-                int boundary = b * BATCH_NUM + BATCH_NUM;
-                for (int i = b * BATCH_NUM; i < boundary && i < data.size(); i++) {
-                    if (checkExists(config, data.getJSONObject(i).getString(config.getRemoteOnlyCheckField()), rs)) {
-                        if (isUpdate) {
-                            rs.execute(buildUpdateSql(config, data.getJSONObject(i)));
-                            updateCount++;
-                        } else {
-                            skipCount++;
-                        }
+            int oldMaxId = getMaxId(config.getLocalTable(), rs);
+            for (int i = 0; i < data.size(); i++) {
+                JSONObject item = data.getJSONObject(i);
+                if (checkExists(config, item.getString(config.getRemoteOnlyCheckField()), rs)) {
+                    if (isUpdate) {
+                        rs.execute(buildUpdateSql(config, data.getJSONObject(i)));
+                        updateCount++;
                     } else {
-                        sb.append("(").append(buildInsertData(config, data.getJSONObject(i), modeStaticInfo)).append("),");
+                        skipCount++;
+                    }
+                } else {
+                    params.add(buildInsertData(config, item, modeStaticInfo));
+                }
+            }
+            String dbType = rs.getDBType();
+            UTILS.writeLog("dbType ::: " + dbType);
+            if (StrUtil.equals(DBConstant.DB_TYPE_ORACLE, dbType)) {
+                for (List itemParams : params) {
+                    if (!rs.executeUpdate(insertSql, itemParams)) {
+                        UTILS.writeLog("插入数据失败" + rs.getExceptionMsg());
                     }
                 }
-                if (sb.charAt(sb.length() - 1) == StrUtil.C_COMMA) {
-                    sb.deleteCharAt(sb.length() - 1);
-                    rs.execute(sb.toString());
+            } else {
+                if (!rs.executeBatchSql(insertSql, params)) {
+                    UTILS.writeLog("批量插入数据失败" + rs.getExceptionMsg());
+                    return;
                 }
-                buildUfAuthBatch(config, oldMaxId, rs);
             }
+            buildUfAuthBatch(config, oldMaxId, rs);
             if (isUpdate) {
                 UTILS.writeLog("更新数据" + updateCount + "条");
             } else {
@@ -113,15 +92,17 @@ public class ModelUtil {
             UTILS.writeLog("写入数据错误，异常消息:" + e.getMessage());
         }
     }
+
     /**
      * 批量写入数据到建模表明细表，不支持Oracle数据库
      * isUpdate is true: isSkip决定更新还是跳过
      * isUpdate is false: 直接清空该mainid的明细再插入
-     * @param config 配置
-     * @param mainId 主表id
-     * @param data 被写入数据
+     *
+     * @param config   配置
+     * @param mainId   主表id
+     * @param data     被写入数据
      * @param isUpdate 是否更新
-     * @param isSkip 是否跳过
+     * @param isSkip   是否跳过
      */
     public static void batchWriteDetail(SyncWriteDataConfig config, String mainId, JSONArray data, boolean isUpdate, boolean isSkip) {
         RecordSet rs = new RecordSet();
@@ -134,34 +115,36 @@ public class ModelUtil {
             rs.execute(StrUtil.format(CLEAN_DETAIL_SQL, config.getLocalTable(), mainId));
         }
         UTILS.writeLog("开始写入数据...");
+        String insertSql = buildInsertDetailSql(config);
+        List<List> params = new ArrayList<>(data.size());
         try {
-            // 计算批次
-            int batchCount = data.size() / BATCH_NUM;
-            if (data.size() % BATCH_NUM > 0) {
-                batchCount ++;
-            }
             int skipCount = 0;
             int updateCount = 0;
-            for (int b = 0; b < batchCount; b++) {
-                StringBuilder sb = new StringBuilder(buildInsertDetailSqlPrefix(config));
-                int boundary = b * BATCH_NUM + BATCH_NUM;
-                for (int i = b * BATCH_NUM; i < boundary && i < data.size(); i++) {
-                    if (isUpdate && checkExistsInDetail(config, data.getJSONObject(i).getString(config.getRemoteOnlyCheckField()), mainId, rs)) {
-                        if (isSkip) {
-                            skipCount++;
-                        } else {
-                            rs.execute(buildUpdateSql(config, data.getJSONObject(i)));
-                            updateCount++;
-                        }
+            for (int i = 0; i < data.size(); i++) {
+                JSONObject item = data.getJSONObject(i);
+                if (isUpdate && checkExistsInDetail(config, item.getString(config.getRemoteOnlyCheckField()), mainId, rs)) {
+                    if (isSkip) {
+                        skipCount++;
                     } else {
-                        sb.append("(").append(mainId).append(StrUtil.COMMA)
-                                .append(buildInsertData(config, data.getJSONObject(i), StrUtil.EMPTY))
-                                .append("),");
+                        rs.execute(buildUpdateSql(config, item));
+                        updateCount++;
+                    }
+                } else {
+                    params.add(buildInsertDetailData(config, item, mainId));
+                }
+            }
+            String dbType = rs.getDBType();
+            UTILS.writeLog("dbType ::: " + dbType);
+            if (StrUtil.equals(DBConstant.DB_TYPE_ORACLE, dbType)) {
+                for (List itemParams : params) {
+                    if (!rs.executeUpdate(insertSql, itemParams)) {
+                        UTILS.writeLog("插入数据失败" + rs.getExceptionMsg());
                     }
                 }
-                if (sb.charAt(sb.length() - 1) == StrUtil.C_COMMA) {
-                    sb.deleteCharAt(sb.length() - 1);
-                    rs.execute(sb.toString());
+            } else {
+                if (!rs.executeBatchSql(insertSql, params)) {
+                    UTILS.writeLog("批量插入明细表数据失败" + rs.getExceptionMsg());
+                    return;
                 }
             }
             if (isUpdate) {
@@ -178,9 +161,9 @@ public class ModelUtil {
     }
 
 
-
     /**
      * 构建数据写入配置
+     *
      * @param config config
      * @return syncConfig
      */
@@ -201,82 +184,87 @@ public class ModelUtil {
      * 获取插入sql
      *
      * @param config 配置
-     * @param data           数据体
-     * @param modeStaticInfo 建模表固定插入
      * @return sql
      */
-    private static String buildInsertSql(SyncWriteDataConfig config, JSONObject data, String modeStaticInfo) {
-        StringBuilder sqlInsert = new StringBuilder(buildInsertSqlPrefix(config));
-        sqlInsert.append("(").append(buildInsertData(config, data, modeStaticInfo)).append(")");
-        return sqlInsert.toString();
+    private static String buildInsertSql(SyncWriteDataConfig config) {
+        String[] fields = config.getLocalFields();
+        if (ObjectUtil.isNotNull(config.getFormModeId())) {
+            fields = ArrayUtil.addAll(fields, MODE_TABLE_STATIC_FIELDS);
+        }
+        return StrUtil.format("insert into {} ({}) values ({})", config.getLocalTable(), String.join(StrUtil.COMMA, fields), String.join(StrUtil.COMMA, Collections.nCopies(fields.length, "?")));
     }
 
     /**
      * 构建插入数据
      *
-     * @param config 配置
+     * @param config         配置
      * @param data           数据体
      * @param modeStaticInfo 建模表固定插入
      * @return sql
      */
-    private static String buildInsertData(SyncWriteDataConfig config, JSONObject data, String modeStaticInfo) {
-        StringBuilder sqlInsert = new StringBuilder();
+    private static List<Object> buildInsertData(SyncWriteDataConfig config, JSONObject data, List<Object> modeStaticInfo) {
+        List<Object> itemParams = new ArrayList<>(config.getRemoteFields().length + modeStaticInfo.size());
+        injectNormalFields(config, data, itemParams);
+        if (ObjectUtil.isNotNull(config.getFormModeId())) {
+            itemParams.addAll(modeStaticInfo);
+        }
+        return itemParams;
+    }
+
+    /**
+     * 构建明细插入SQL
+     *
+     * @param config config
+     * @return sql
+     */
+    private static String buildInsertDetailSql(SyncWriteDataConfig config) {
+        return StrUtil.format("insert into {} (mainid,{}) values ({})", config.getLocalTable(), String.join(StrUtil.COMMA, config.getLocalFields()), String.join(StrUtil.COMMA, Collections.nCopies(config.getLocalFields().length + 1, "?")));
+    }
+
+    /**
+     * 构建明细表数据
+     *
+     * @param config config
+     * @param data   data
+     * @param mainId mainId
+     * @return params
+     */
+    private static List<Object> buildInsertDetailData(SyncWriteDataConfig config, JSONObject data, String mainId) {
+        List<Object> itemParams = new ArrayList<>(config.getRemoteFields().length + 1);
+        itemParams.add(mainId);
+        injectNormalFields(config, data, itemParams);
+        return itemParams;
+    }
+
+    /**
+     * 注入普通字段
+     *
+     * @param config     config
+     * @param data       data
+     * @param itemParams params
+     */
+    private static void injectNormalFields(SyncWriteDataConfig config, JSONObject data, List<Object> itemParams) {
         for (int i = 0; i < config.getRemoteFields().length; i++) {
             String str = data.getString(config.getRemoteFields()[i]);
             if (StrUtil.isBlank(str)) {
                 if (config.getDoubleIndex().contains(i)) {
-                    sqlInsert.append("'0',");
+                    itemParams.add("0");
                 } else {
-                    sqlInsert.append("'',");
+                    itemParams.add(StrUtil.EMPTY);
                 }
             } else if (JsonUtil.isScientificNotation(str)) {
-                sqlInsert.append(StrUtil.format("'{}',", JsonUtil.convertScientificNotationToNormalString(str)));
+                itemParams.add(JsonUtil.convertScientificNotationToNormalString(str));
             } else {
-                sqlInsert.append(StrUtil.format("'{}',", str));
+                itemParams.add(str);
             }
         }
-
-        if (ObjectUtil.isNotNull(config.getFormModeId())) {
-            sqlInsert.append(modeStaticInfo);
-        } else if (sqlInsert.charAt(sqlInsert.length()-1) == StrUtil.C_COMMA) {
-            sqlInsert.deleteCharAt(sqlInsert.length()-1);
-        }
-        return sqlInsert.toString();
-    }
-    /**
-     * 构建插入sql前缀
-     *
-     * @param config 配置
-     * @return sql
-     */
-    private static String buildInsertSqlPrefix(SyncWriteDataConfig config) {
-        StringBuilder sqlInsert = new StringBuilder();
-        sqlInsert.append("insert into ").append(config.getLocalTable()).append(" (").append(String.join(",", config.getLocalFields()));
-        if (ObjectUtil.isNotNull(config.getFormModeId())) {
-            sqlInsert.append(MODE_TABLE_STATIC_FIELDS);
-        }
-        sqlInsert.append(") VALUES ");
-        return sqlInsert.toString();
-    }
-    /**
-     * 构建明细表插入sql前缀
-     *
-     * @param config 配置
-     * @return sql
-     */
-    private static String buildInsertDetailSqlPrefix(SyncWriteDataConfig config) {
-        return new StringBuilder("insert into ")
-                .append(config.getLocalTable())
-                .append(" (mainid,")
-                .append(String.join(",", config.getLocalFields()))
-                .append(") VALUES ").toString();
     }
 
     /**
      * 获取更新sql
      *
      * @param config 配置
-     * @param data           数据体
+     * @param data   数据体
      * @return sql
      */
     private static String buildUpdateSql(SyncWriteDataConfig config, JSONObject data) {
@@ -293,8 +281,8 @@ public class ModelUtil {
             }
             if (ObjectUtil.isNotNull(config.getFormModeId())) {
                 sqlUpdate.append(StrUtil.format("modedatamodifydatetime='{}'", DatePattern.NORM_DATETIME_FORMAT.format(DateTime.now())));
-            } else if (sqlUpdate.charAt(sqlUpdate.length()-1) == StrUtil.C_COMMA) {
-                sqlUpdate.deleteCharAt(sqlUpdate.length()-1);
+            } else if (sqlUpdate.charAt(sqlUpdate.length() - 1) == StrUtil.C_COMMA) {
+                sqlUpdate.deleteCharAt(sqlUpdate.length() - 1);
             }
             sqlUpdate.append(StrUtil.format(" where {}='{}'", config.getLocalOnlyCheckField(), data.getString(config.getRemoteOnlyCheckField())));
             return sqlUpdate.toString();
@@ -304,29 +292,11 @@ public class ModelUtil {
     }
 
     /**
-     * 赋权
-     *
-     * @param config 配置
-     * @param rs RecordSet
-     */
-    private static void buildUfAuth(SyncWriteDataConfig config, RecordSet rs) {
-        if (ObjectUtil.isNull(config.getFormModeId())) {
-            return;
-        }
-        int id = getMaxId(config.getLocalTable(), rs);
-        if (ObjectUtil.isNull(id)) {
-            return;
-        }
-        ModeRightInfo moderightinfo = new ModeRightInfo();
-        moderightinfo.setNewRight(true);
-        moderightinfo.editModeDataShare(1, config.getFormModeId(), id);
-    }
-    /**
      * 批量赋权
      *
-     * @param config 配置
+     * @param config   配置
      * @param oldMaxId 旧数据最大id
-     * @param rs RecordSet
+     * @param rs       RecordSet
      */
     private static void buildUfAuthBatch(SyncWriteDataConfig config, int oldMaxId, RecordSet rs) {
         if (ObjectUtil.isNull(config.getFormModeId())) {
@@ -363,7 +333,7 @@ public class ModelUtil {
     /**
      * 检查数据是否存在
      *
-     * @param config 配置
+     * @param config     配置
      * @param checkValue 唯一性检查
      * @return isExists
      */
@@ -374,13 +344,14 @@ public class ModelUtil {
                 checkValue));
         return rs.next() && rs.getInt("count") > 0;
     }
+
     /**
      * 检查数据是否存在明细表
      *
-     * @param config 配置
+     * @param config     配置
      * @param checkValue 唯一性检查
-     * @param mainid 主表id
-     * @param rs RecordSet
+     * @param mainid     主表id
+     * @param rs         RecordSet
      * @return isExists
      */
     private static boolean checkExistsInDetail(SyncWriteDataConfig config, String checkValue, String mainid, RecordSet rs) {
@@ -389,7 +360,7 @@ public class ModelUtil {
                 mainid,
                 config.getLocalOnlyCheckField(),
                 checkValue
-                ));
+        ));
         return rs.next() && rs.getInt("count") > 0;
     }
 }
