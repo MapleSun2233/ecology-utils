@@ -29,6 +29,7 @@ public class ModelUtil {
     private static final String QUERY_NEW_ID_SQL = "select id from {} where id > {}";
     private static final String CLEAN_DETAIL_SQL = "delete from {} where mainid={}";
     private static final String[] MODE_TABLE_STATIC_FIELDS = new String[]{"formmodeid", "modedatacreater", "modedatacreatertype", "modedatacreatedate", "modedatacreatetime", "modedatamodifydatetime"};
+    private static final int BATCH_NUM = 500;
 
     private static final BaseBean UTILS = new BaseBean();
 
@@ -69,16 +70,9 @@ public class ModelUtil {
             String dbType = rs.getDBType();
             UTILS.writeLog("dbType ::: " + dbType);
             if (StrUtil.equals(DBConstant.DB_TYPE_ORACLE, dbType)) {
-                for (List itemParams : params) {
-                    if (!rs.executeUpdate(insertSql, itemParams)) {
-                        UTILS.writeLog("插入数据失败" + rs.getExceptionMsg());
-                    }
-                }
+                singleInsert(insertSql, params, rs);
             } else {
-                if (!rs.executeBatchSql(insertSql, params)) {
-                    UTILS.writeLog("批量插入数据失败" + rs.getExceptionMsg());
-                    return;
-                }
+                securityBatchInsert(insertSql, params, rs);
             }
             buildUfAuthBatch(config, oldMaxId, rs);
             if (isUpdate) {
@@ -136,16 +130,9 @@ public class ModelUtil {
             String dbType = rs.getDBType();
             UTILS.writeLog("dbType ::: " + dbType);
             if (StrUtil.equals(DBConstant.DB_TYPE_ORACLE, dbType)) {
-                for (List itemParams : params) {
-                    if (!rs.executeUpdate(insertSql, itemParams)) {
-                        UTILS.writeLog("插入数据失败" + rs.getExceptionMsg());
-                    }
-                }
+                singleInsert(insertSql, params, rs);
             } else {
-                if (!rs.executeBatchSql(insertSql, params)) {
-                    UTILS.writeLog("批量插入明细表数据失败" + rs.getExceptionMsg());
-                    return;
-                }
+                securityBatchInsert(insertSql, params, rs);
             }
             if (isUpdate) {
                 if (isSkip) {
@@ -178,6 +165,42 @@ public class ModelUtil {
                 .formModeId(NumberUtil.isInteger(config.get("formModeId")) ? Integer.parseInt(config.get("formModeId")) : null)
                 .doubleIndex(StrUtil.isBlank(config.get("doubleIndex")) ? Collections.emptyList() : Arrays.stream(config.get("doubleIndex").split(",")).filter(NumberUtil::isInteger).map(Integer::parseInt).collect(Collectors.toList()))
                 .build();
+    }
+
+    /**
+     * 插入单条数据
+     *
+     * @param insertSql 插入语句
+     * @param params    params
+     * @param rs        rs
+     */
+    public static void singleInsert(String insertSql, List<List> params, RecordSet rs) {
+        for (List itemParams : params) {
+            if (!rs.executeUpdate(insertSql, itemParams)) {
+                UTILS.writeLog("插入数据失败" + rs.getExceptionMsg());
+            }
+        }
+    }
+
+    /**
+     * 安全的批量插入，不支持oracle
+     *
+     * @param insertSql 插入语句
+     * @param params    params
+     * @param rs        rs
+     */
+    public static void securityBatchInsert(String insertSql, List<List> params, RecordSet rs) {
+        int batchCounts = params.size() / BATCH_NUM;
+        for (int i = 0; i < batchCounts; i++) {
+            if (!rs.executeBatchSql(insertSql, params.subList(i * BATCH_NUM, i * BATCH_NUM + BATCH_NUM))) {
+                UTILS.writeLog("批量插入数据失败" + rs.getExceptionMsg());
+            }
+        }
+        if (params.size() % BATCH_NUM != 0) {
+            if (!rs.executeBatchSql(insertSql, params.subList(batchCounts * BATCH_NUM, params.size()))) {
+                UTILS.writeLog("批量插入数据失败" + rs.getExceptionMsg());
+            }
+        }
     }
 
     /**
@@ -302,17 +325,26 @@ public class ModelUtil {
         if (ObjectUtil.isNull(config.getFormModeId())) {
             return;
         }
-        rs.execute(StrUtil.format(QUERY_NEW_ID_SQL, config.getLocalTable(), oldMaxId));
-        Map<Integer, Integer> creatorMap = new HashMap<>(rs.getCounts());
-        while (rs.next()) {
-            creatorMap.put(rs.getInt("id"), 1);
-        }
-        if (MapUtil.isEmpty(creatorMap)) {
-            return;
-        }
         ModeRightInfo moderightinfo = new ModeRightInfo();
         moderightinfo.setNewRight(true);
-        moderightinfo.editModeDataShare(creatorMap, config.getFormModeId(), new ArrayList<>(creatorMap.keySet()));
+        rs.execute(StrUtil.format(QUERY_NEW_ID_SQL, config.getLocalTable(), oldMaxId));
+        if (StrUtil.equals(DBConstant.DB_TYPE_ORACLE, rs.getDBType())) {
+            while (rs.next()) {
+                moderightinfo.editModeDataShare(1, config.getFormModeId(), rs.getInt("id"));
+            }
+        } else {
+            Map<Integer, Integer> creatorMap = new HashMap<>(rs.getCounts());
+            while (rs.next()) {
+                creatorMap.put(rs.getInt("id"), 1);
+                if (creatorMap.size() >= 500) {
+                    moderightinfo.editModeDataShare(creatorMap, config.getFormModeId(), new ArrayList<>(creatorMap.keySet()));
+                    creatorMap.clear();
+                }
+            }
+            if (MapUtil.isNotEmpty(creatorMap)) {
+                moderightinfo.editModeDataShare(creatorMap, config.getFormModeId(), new ArrayList<>(creatorMap.keySet()));
+            }
+        }
     }
 
     /**
