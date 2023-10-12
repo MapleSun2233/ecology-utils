@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLDecoder;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author slf
@@ -188,6 +189,39 @@ public class DocUtil {
         }
         return -1;
     }
+    /**
+     * 忽略版本根据docId反查文件imageFileId列表
+     * @param docId docId
+     * @return list
+     */
+    public static List<Integer> getImageFileIdListByDocIdIgnoreVersion(int docId) {
+        RecordSet rs = new RecordSet();
+        rs.executeQuery("select imagefileid from DocImageFile where docid = ? order by versionid desc", docId);
+        List<Integer> imageFileIdList = new ArrayList<>();
+        while (rs.next()) {
+            imageFileIdList.add(rs.getInt("imagefileid"));
+        }
+        return imageFileIdList;
+    }
+
+    /**
+     * 根据docId反查文件imageFileId列表
+     * @param docId docId
+     * @return list
+     */
+    public static List<Integer> getImageFileIdListByDocId(int docId) {
+        RecordSet rs = new RecordSet();
+        RecordSet rs1 = new RecordSet();
+        List<Integer> imageFileIdList = new ArrayList<>();
+        rs.executeQuery("select distinct id from DocImageFile where docid = ?", docId);
+        while (rs.next()) {
+            rs1.executeQuery("select imagefileid from DocImageFile where id = ? and docid = ? order by versionId desc", rs.getInt("id"), docId);
+            if (rs1.next()) {
+                imageFileIdList.add(rs1.getInt("imagefileid"));
+            }
+        }
+        return imageFileIdList;
+    }
 
     /**
      * 根据docId获取ImageFileManager
@@ -198,6 +232,31 @@ public class DocUtil {
         ImageFileManager imageFileManager = new ImageFileManager();
         imageFileManager.getImageFileInfoById(getImageFileIdByDocId(docId));
         return imageFileManager;
+    }
+
+    /**
+     * 根据docId获取ImageFileManager列表
+     * @param docId docId
+     * @return list
+     */
+    public static List<ImageFileManager> getImageFileManagerListByDocId(int docId) {
+        return getImageFileIdListByDocId(docId).stream().map(id -> {
+            ImageFileManager imageFileManager = new ImageFileManager();
+            imageFileManager.getImageFileInfoById(id);
+            return imageFileManager;
+        }).collect(Collectors.toList());
+    }
+    /**
+     * 忽略版本根据docId获取ImageFileManager列表
+     * @param docId docId
+     * @return list
+     */
+    public static List<ImageFileManager> getImageFileManagerListByDocIdIgnoreVersion(int docId) {
+        return getImageFileIdListByDocIdIgnoreVersion(docId).stream().map(id -> {
+            ImageFileManager imageFileManager = new ImageFileManager();
+            imageFileManager.getImageFileInfoById(id);
+            return imageFileManager;
+        }).collect(Collectors.toList());
     }
     /**
      * 根据docId获取ImageFileManager
