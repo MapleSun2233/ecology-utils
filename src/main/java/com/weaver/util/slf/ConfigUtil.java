@@ -1,7 +1,6 @@
 package com.weaver.util.slf;
 
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONObject;
 import weaver.conn.RecordSet;
