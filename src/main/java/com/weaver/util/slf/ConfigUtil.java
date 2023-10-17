@@ -1,12 +1,14 @@
 package com.weaver.util.slf;
 
 import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONObject;
 import weaver.conn.RecordSet;
 import weaver.general.BaseBean;
 import weaver.general.GCONST;
 
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 /**
@@ -14,6 +16,7 @@ import java.util.*;
  * 配置工具
  */
 public class ConfigUtil {
+    private static final int EXPIRE = 3;
     private static final BaseBean UTILS = new BaseBean();
 
     /**
@@ -33,11 +36,28 @@ public class ConfigUtil {
                         int index = line.indexOf('=');
                         config.put(line.substring(0, index), line.substring(index+1));
                     });
-            UTILS.writeLog(fileName + "配置信息::" + config);
+            UTILS.writeLog(fileName + " ::: " + config);
         } catch (Exception e) {
-            UTILS.writeLog("配置读取异常，error:::" + e.getMessage());
+            UTILS.writeLog("config read error ::: " + e.getMessage());
         }
         return config;
+    }
+    /**
+     * 读取配置
+     * @param fileName 配置文件名
+     * @return map
+     */
+    public static Map<String, String> readPropertiesConfigWithCache(String fileName) {
+        String path = GCONST.getPropertyPath() + fileName + ".properties";
+        if (CacheUtil.contains(path)) {
+            Map<String, String> config = CacheUtil.get(path, Map.class);
+            UTILS.writeLog("file config read from cache");
+            return config;
+        } else {
+            Map<String, String> config = readPropertiesConfig(fileName);
+            CacheUtil.set(path, config, EXPIRE, ChronoUnit.MINUTES);
+            return config;
+        }
     }
     /**
      * 读取配置
@@ -49,11 +69,28 @@ public class ConfigUtil {
         try {
             String path = GCONST.getPropertyPath() + fileName + ".json";
             res = JSONObject.parseObject(FileUtil.readUtf8String(path));
-            UTILS.writeLog(path + "配置信息:::" + res.toJSONString());
+            UTILS.writeLog(fileName + " config ::: " + res.toJSONString());
         } catch (Exception e) {
-            UTILS.writeLog("配置读取异常，error:::" + e.getMessage());
+            UTILS.writeLog("config read error ::: " + e.getMessage());
         }
         return res;
+    }
+    /**
+     * 读取配置
+     * @param fileName 配置文件名
+     * @return json
+     */
+    public static JSONObject readJsonConfigWithCache(String fileName) {
+        String path = GCONST.getPropertyPath() + fileName + ".json";
+        if (CacheUtil.contains(path)) {
+            JSONObject res = CacheUtil.get(path, JSONObject.class);
+            UTILS.writeLog(fileName + " config read from cache");
+            return res;
+        } else {
+            JSONObject res = readJsonConfig(fileName);
+            CacheUtil.set(path, res, EXPIRE, ChronoUnit.MINUTES);
+            return res;
+        }
     }
 
     /**
