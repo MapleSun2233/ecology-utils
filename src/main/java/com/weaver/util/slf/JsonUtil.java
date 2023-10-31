@@ -5,6 +5,9 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 
+import javax.servlet.http.HttpServletRequest;
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -16,6 +19,26 @@ import java.util.regex.Pattern;
  */
 public class JsonUtil {
     private static Pattern JUDGE_SCIENTIFIC_NOTATION = Pattern.compile("^[+-]?\\d+\\.?\\d*[Ee][+-]?\\d+$");
+
+    /**
+     * 读取body
+     * @param request request
+     * @return body
+     */
+    public static JSONObject readBodyJsonFromRequest(HttpServletRequest request) {
+        try {
+            StringBuilder sb = new StringBuilder();
+            BufferedReader br = request.getReader();
+            String s;
+            while ((s = br.readLine()) != null) {
+                sb.append(s);
+            }
+            br.close();
+            return JSONObject.parseObject(sb.toString());
+        } catch (IOException e) {
+            throw new RuntimeException("json body读取错误");
+        }
+    }
     /**
      * 字节数组转JSONArray，用来解决fastjson序列化默认将字节数组转Base64的问题
      * @param bytes
