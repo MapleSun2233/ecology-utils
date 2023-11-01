@@ -98,30 +98,124 @@ public class WorkflowUtil {
     }
 
     /**
-     * 创建流程， 该用户必须具有流程创建权限
+     * 删除流程
      *
-     * @param createEntity createEntity
-     * @return PAResponseEntity result
+     * @param userId 用户id
+     * @param requestId 流程id
      */
-    public static int createWorkflow(JSONObject createEntity) {
+    public static void deleteRequest(String userId, int requestId) {
+        Map<String, Integer> nowNodeInfo = getNowNodeInfoByRequestId(requestId);
         WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
         ValidatorUtil.builder()
+                .append(nowNodeInfo, Map::isEmpty, StrUtil.format("删除失败，流程{}不存在", requestId))
+                .append(nowNodeInfo.get("nowNodeType"), s -> s != 0, StrUtil.format("删除失败，流程{}处于非创建节点", requestId))
                 .append(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败")
-                .append(createEntity, ObjectUtil::isNull, "创建数据实体不能为空")
-                .append(createEntity.getString("workflowId"), id -> StrUtil.isBlank(id) || !NumberUtil.isInteger(id), "workflowId错误")
-                .append(createEntity.getString("title"), StrUtil::isBlank, "流程标题不能为空")
                 .validate();
-//        List<WorkflowRequestTableField> mainFields, List<WorkflowDetailTableInfoEntity> detailFields
         User user = null;
-        String userId = createEntity.getString("creator");
         if (StrUtil.isNotBlank(userId) && NumberUtil.isInteger(userId)) {
             user = User.getUser(NumberUtil.parseInt(userId), 0);
         } else {
             user = User.getUser(1, 0);
         }
         ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
-        entity.setWorkflowId(createEntity.getInteger("workflowId"));
-        entity.setRequestName(createEntity.getString("title"));
+        entity.setRequestId(requestId);
+        PAResponseEntity responseEntity = operatePa.deleteRequest(user, entity);
+        if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
+            throw new RuntimeException(StrUtil.format("删除失败，流程{}操作者无权删除", requestId));
+        }
+        UTILS.writeLog("delete request ::: " + requestId);
+    }
+
+    /**
+     * 创建流程， 该用户必须具有流程创建权限
+     *
+     * @param createEntity createEntity
+     * @return PAResponseEntity result
+     *
+     * {
+     *     "workflowId": 28,
+     *     "title": "流程工具测试流程8",
+     *     "creator": 1,
+     *     "isSubmit": true,
+     *     "remark": "<h1 style='color:red'>审批</h1>",
+     *     "mainData": {
+     *         "convertFields": {
+     *             "drl": "employee",
+     *             "dbm": "department",
+     *             "dgs": "company"
+     *         },
+     *         "fields": [
+     *             {
+     *                 "fieldName": "wb",
+     *                 "fieldValue": "我是文本"
+     *             },
+     *             {
+     *                 "fieldName": "drl",
+     *                 "fieldValue": "1,2,3"
+     *             },
+     *             {
+     *                 "fieldName": "dbm",
+     *                 "fieldValue": "sssss"
+     *             },
+     *             {
+     *                 "fieldName": "dgs",
+     *                 "fieldValue": "comp1"
+     *             }
+     *         ]
+     *     },
+     *     "detailData": [
+     *         {
+     *             "detailTableName": "dt1",
+     *             "convertFields": {
+     *                 "drl": "employee",
+     *                 "dbm": "department",
+     *                 "dfb": "company"
+     *             },
+     *             "lines": [
+     *                 [
+     *                     {
+     *                         "fieldName": "wb",
+     *                         "fieldValue": "我是文本"
+     *                     },
+     *                     {
+     *                         "fieldName": "drl",
+     *                         "fieldValue": "1,2,3"
+     *                     },
+     *                     {
+     *                         "fieldName": "dbm",
+     *                         "fieldValue": "sssss"
+     *                     },
+     *                     {
+     *                         "fieldName": "dfb",
+     *                         "fieldValue": "comp1"
+     *                     }
+     *                 ]
+     *             ]
+     *         }
+     *     ]
+     * }
+     */
+    public static int createWorkflow(JSONObject createEntity) {
+        WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
+        int workflowId = createEntity.getInteger("workflowId");
+        String tableName = getTableNameByWorkflowId(workflowId);
+        String userId = createEntity.getString("creator");
+        String title = createEntity.getString("title");
+        ValidatorUtil.builder()
+                .append(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败")
+                .append(createEntity, ObjectUtil::isNull, "创建数据实体不能为空")
+                .append(tableName, StrUtil::isBlank, "流程数据表获取失败")
+                .append(title, StrUtil::isBlank, "流程标题不能为空")
+                .validate();
+        User user = null;
+        if (StrUtil.isNotBlank(userId) && NumberUtil.isInteger(userId)) {
+            user = User.getUser(NumberUtil.parseInt(userId), 0);
+        } else {
+            user = User.getUser(1, 0);
+        }
+        ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
+        entity.setWorkflowId(workflowId);
+        entity.setRequestName(title);
         entity.setUserId(user.getUID());
         entity.setClientIp("0:0:0:0:0:0:0:1");
         JSONObject mainData = createEntity.getJSONObject("mainData");
@@ -130,7 +224,7 @@ public class WorkflowUtil {
         }
         JSONArray detailData = createEntity.getJSONArray("detailData");
         if (ObjectUtil.isNotNull(detailData)) {
-            entity.setDetailData(buildDetailData(detailData));
+            entity.setDetailData(buildDetailData(detailData, tableName));
         }
         if (createEntity.containsKey("isSubmit") && createEntity.getBoolean("isSubmit")) {
             String remark = createEntity.getString("remark");
@@ -163,16 +257,17 @@ public class WorkflowUtil {
      * 构建明细表
      *
      * @param detailsData 明细表数据
+     * @param tableName   主数据表名
      * @return tables
      */
-    public static List<WorkflowDetailTableInfoEntity> buildDetailData(JSONArray detailsData) {
+    public static List<WorkflowDetailTableInfoEntity> buildDetailData(JSONArray detailsData, String tableName) {
         List<WorkflowDetailTableInfoEntity> detailData = new ArrayList<>(detailsData.size());
         for (int i = 0; i < detailsData.size(); i++) {
             JSONObject detailTableData = detailsData.getJSONObject(i);
             ValidatorUtil.validate(detailTableData.getString("detailTableName"), StrUtil::isBlank, "明细表名不能为空");
             JSONObject convertFields = detailTableData.getJSONObject("convertFields");
             WorkflowDetailTableInfoEntity entity = new WorkflowDetailTableInfoEntity();
-            entity.setTableDBName(detailTableData.getString("detailTableName"));
+            entity.setTableDBName(tableName + "_" + detailTableData.getString("detailTableName"));
             entity.setWorkflowRequestTableRecords(buildLines(detailTableData.getJSONArray("lines"), convertFields));
             detailData.add(entity);
         }
@@ -222,8 +317,9 @@ public class WorkflowUtil {
 
     /**
      * 处理字段转换
-     * @param fields 字段值
-     * @param convertFields  转换字段配置
+     *
+     * @param fields        字段值
+     * @param convertFields 转换字段配置
      */
     public static void handleConvertFields(JSONArray fields, JSONObject convertFields) {
         if (ObjectUtil.isNull(convertFields)) {
@@ -403,5 +499,38 @@ public class WorkflowUtil {
             return result;
         }
         return Collections.emptyList();
+    }
+
+    /**
+     * 根据workflowId获取数据表名
+     *
+     * @param workflowId 流程id
+     * @return 表名
+     */
+    public static String getTableNameByWorkflowId(int workflowId) {
+        RecordSet rs = new RecordSet();
+        if (rs.executeQuery("select tablename from workflow_base a left join workflow_bill b on a.formid = b.id where a.id = ?", workflowId) && rs.next()) {
+            return rs.getString("tablename");
+        }
+        return StrUtil.EMPTY;
+    }
+
+    /**
+     * 获取当前节点信息
+     *
+     * @param requestId 流程id
+     * @return map
+     */
+    public static Map<String, Integer> getNowNodeInfoByRequestId(int requestId) {
+        RecordSet rs = new RecordSet();
+        if (rs.executeQuery("select requestid, nownodeid, nownodetype from workflow_nownode where requestid = ?", requestId) && rs.next()) {
+            return MapUtil.builder(new HashMap<String, Integer>(3))
+                    .put("requestId", (Integer) rs.getInt("requestid"))
+                    .put("nowNodeId", (Integer) rs.getInt("nownodeid"))
+                    .put("nowNodeType", (Integer) rs.getInt("nownodetype"))
+                    .build();
+        } else {
+            return MapUtil.newHashMap();
+        }
     }
 }
