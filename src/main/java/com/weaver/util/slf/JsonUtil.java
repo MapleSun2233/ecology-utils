@@ -30,8 +30,9 @@ public class JsonUtil {
             StringBuilder sb = new StringBuilder();
             BufferedReader br = request.getReader();
             String s;
+            String ecoding = System.getProperty("file.encoding");
             while ((s = br.readLine()) != null) {
-                sb.append(s);
+                sb.append(new String(s.getBytes(ecoding), "UTF-8"));
             }
             br.close();
             return JSONObject.parseObject(sb.toString());
