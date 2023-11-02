@@ -8,6 +8,7 @@ import com.alibaba.fastjson.JSONObject;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -28,15 +29,16 @@ public class JsonUtil {
      */
     public static JSONObject readBodyJsonFromRequest(HttpServletRequest request) {
         try {
-            StringBuilder sb = new StringBuilder();
-            BufferedReader br = request.getReader();
-            String s;
-            String sysEnc = System.getProperty("file.encoding");
-            while ((s = br.readLine()) != null) {
-                sb.append(s);
+            InputStream is = request.getInputStream();
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int len = -1;
+            while ((len = is.read(buffer)) != -1) {
+                bos.write(buffer, 0, len);
             }
-            br.close();
-            return JSONObject.parseObject(CharsetUtil.convert(sb.toString(), sysEnc, "UTF-8"));
+            bos.close();
+            is.close();
+            return JSONObject.parseObject(bos.toString("UTF-8"));
         } catch (IOException e) {
             throw new RuntimeException("json body读取错误");
         }
