@@ -21,25 +21,22 @@ public class SqlUtil {
      * @return jsonArr
      */
     public static JSONArray executeAndToJson(String sql) {
-        try {
-            RecordSet rs = new RecordSet();
-            String[] columns = null;
-            if (rs.execute(sql)) {
-                columns = rs.getColumnName();
-            }
-            if (ObjectUtil.isNull(columns)) {
-                return null;
-            }
-            JSONArray res = new JSONArray();
-            while (rs.next()) {
-                JSONObject obj = new JSONObject();
-                Arrays.stream(columns).forEach(col -> obj.put(col, rs.getString(col)));
-                res.add(obj);
-            }
-            return res;
-        } catch (Exception e) {
-            utils.writeLog("executeAndToJson exception: " + e.getMessage());
-            return null;
+        ValidatorUtil.validate(sql, s -> !s.toLowerCase().startsWith("select"), "sql配置错误，该方式禁止用于修改数据！");
+        RecordSet rs = new RecordSet();
+        if (!rs.execute(sql)) {
+            utils.writeLog("SQL执行出错 :: " + sql);
+            throw new RuntimeException("SQL执行出错，请检查SQL配置");
         }
+        String[] columns = rs.getColumnName();
+        if (ObjectUtil.isNull(columns) || columns.length == 0) {
+            throw new RuntimeException("SQL字段列获取失败，请检查SQL配置");
+        }
+        JSONArray res = new JSONArray();
+        while (rs.next()) {
+            JSONObject obj = new JSONObject();
+            Arrays.stream(columns).forEach(col -> obj.put(col, rs.getString(col)));
+            res.add(obj);
+        }
+        return res;
     }
 }
