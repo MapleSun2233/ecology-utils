@@ -1,6 +1,7 @@
 package com.weaver.util.slf;
 
 import cn.hutool.core.io.IoUtil;
+import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
@@ -30,12 +31,12 @@ public class JsonUtil {
             StringBuilder sb = new StringBuilder();
             BufferedReader br = request.getReader();
             String s;
-            String ecoding = System.getProperty("file.encoding");
+            String sysEnc = System.getProperty("file.encoding");
             while ((s = br.readLine()) != null) {
-                sb.append(new String(s.getBytes(ecoding), "UTF-8"));
+                sb.append(s);
             }
             br.close();
-            return JSONObject.parseObject(sb.toString());
+            return JSONObject.parseObject(CharsetUtil.convert(sb.toString(), sysEnc, "UTF-8"));
         } catch (IOException e) {
             throw new RuntimeException("json body读取错误");
         }
