@@ -406,6 +406,15 @@ public class DocUtil {
     }
 
     /**
+     * 字节转base64
+     * @param bytes bytes
+     * @return base64
+     */
+    public static String bytesToBase64(byte[] bytes) {
+        return Base64.getEncoder().encodeToString(bytes);
+    }
+
+    /**
      * 处理重名文件命名
      * @param fileNameRecord 文件名记录
      * @param fileName 带拓展名的文件名

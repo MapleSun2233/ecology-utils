@@ -5,6 +5,7 @@ import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.engine.workflow.util.HttpServletRequestUtil;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.BufferedReader;
@@ -29,17 +30,19 @@ public class JsonUtil {
      */
     public static JSONObject readBodyJsonFromRequest(HttpServletRequest request) {
         try {
-            InputStream is = request.getInputStream();
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            byte[] buffer = new byte[1024];
-            int len = -1;
-            while ((len = is.read(buffer)) != -1) {
-                bos.write(buffer, 0, len);
-            }
-            bos.close();
-            is.close();
-            return JSONObject.parseObject(bos.toString("UTF-8"));
-        } catch (IOException e) {
+            String json = HttpServletRequestUtil.request2Json(request);
+            return JSONObject.parseObject(json);
+//            InputStream is = request.getInputStream();
+//            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+//            byte[] buffer = new byte[1024];
+//            int len = -1;
+//            while ((len = is.read(buffer)) != -1) {
+//                bos.write(buffer, 0, len);
+//            }
+//            bos.close();
+//            is.close();
+//            return JSONObject.parseObject(bos.toString("UTF-8"));
+        } catch (Exception e) {
             throw new RuntimeException("json body读取错误");
         }
     }
@@ -50,6 +53,15 @@ public class JsonUtil {
      */
     public static JSONArray byteArrToJsonArray(byte[] bytes) {
         return JSONArray.parseArray(Arrays.toString(bytes));
+    }
+
+    /**
+     * json数组转byte数组
+     * @param arr json
+     * @return byte
+     */
+    public static byte[] jsonArrayToByte(JSONArray arr) {
+        return JSONArray.parseObject(arr.toJSONString(), byte[].class);
     }
 
     /**

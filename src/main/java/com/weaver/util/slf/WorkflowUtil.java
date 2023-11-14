@@ -340,10 +340,27 @@ public class WorkflowUtil {
                     case "company":
                         item.put("fieldValue", HrmUtil.convertCompanyCodesToCompanyIds(fieldValue));
                         break;
+                    case "fileBytes":
+                        item.put("fieldValue", convertJsonFileList(fieldValue));
                     default:
                 }
             }
         }
+    }
+
+    /**
+     * 用于解决通用流程创建附件上传无法直接传递base64的问题，使用字节数组转换
+     * @param fieldValue fieldValue
+     * @return  fieldValue
+     */
+    private static String convertJsonFileList(String fieldValue) {
+        JSONArray list = JSONArray.parseArray(fieldValue);
+        for (int i = 0; i < list.size(); i++) {
+            JSONObject item = list.getJSONObject(i);
+            String base64 = "base64:" + DocUtil.bytesToBase64(JsonUtil.jsonArrayToByte(item.getJSONArray("filePath")));
+            item.put("filePath", base64);
+        }
+        return list.toJSONString();
     }
 
     /**
