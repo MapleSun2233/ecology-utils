@@ -1,6 +1,7 @@
 package com.weaver.util.slf;
 
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import weaver.conn.RecordSet;
@@ -38,5 +39,30 @@ public class SqlUtil {
             res.add(obj);
         }
         return res;
+    }
+
+    /**
+     * 构建select语句
+     * @param fields   字段
+     * @param tableName 表名
+     * @return sql
+     */
+    public static String buildSelectSql(String fields, String tableName) {
+        return StrUtil.format("select {} from {}", fields, tableName);
+    }
+
+    /**
+     * 构建select 语句
+     * @param fields    字段
+     * @param tableName 表名
+     * @param condition 条件
+     * @return sql
+     */
+    public static String buildSelectSql(String fields, String tableName, String condition) {
+        String sql = buildSelectSql(fields, tableName);
+        if (StrUtil.isBlank(condition)) {
+            return sql;
+        }
+        return sql + StrUtil.SPACE + condition;
     }
 }
