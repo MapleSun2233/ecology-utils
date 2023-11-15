@@ -1,5 +1,6 @@
 package com.weaver.util.slf;
 
+import cn.hutool.core.convert.Convert;
 import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.StrUtil;
@@ -31,17 +32,9 @@ public class JsonUtil {
     public static JSONObject readBodyJsonFromRequest(HttpServletRequest request) {
         try {
             String json = HttpServletRequestUtil.request2Json(request);
+            // 消除可能因为安全机制导致的字符全角
+            json = Convert.toDBC(json);
             return JSONObject.parseObject(json);
-//            InputStream is = request.getInputStream();
-//            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-//            byte[] buffer = new byte[1024];
-//            int len = -1;
-//            while ((len = is.read(buffer)) != -1) {
-//                bos.write(buffer, 0, len);
-//            }
-//            bos.close();
-//            is.close();
-//            return JSONObject.parseObject(bos.toString("UTF-8"));
         } catch (Exception e) {
             throw new RuntimeException("json body读取错误");
         }
