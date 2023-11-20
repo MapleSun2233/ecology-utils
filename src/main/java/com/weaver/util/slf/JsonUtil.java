@@ -31,7 +31,16 @@ public class JsonUtil {
      */
     public static JSONObject readBodyJsonFromRequest(HttpServletRequest request) {
         try {
-            String json = HttpServletRequestUtil.request2Json(request);
+            InputStream is = request.getInputStream();
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int len = -1;
+            while ((len = is.read(buffer)) != -1) {
+                bos.write(buffer, 0, len);
+            }
+            bos.close();
+            is.close();
+            String json = bos.toString("UTF-8");
             // 消除可能因为安全机制导致的字符全角
             json = Convert.toDBC(json);
             return JSONObject.parseObject(json);
