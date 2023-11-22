@@ -200,6 +200,7 @@ public class WorkflowUtil {
         int workflowId = createEntity.getInteger("workflowId");
         String tableName = getTableNameByWorkflowId(workflowId);
         String userId = createEntity.getString("creator");
+        boolean isWorkCode = Optional.ofNullable(createEntity.getBoolean("creatorIsWorkCode")).orElse(false);
         String title = createEntity.getString("title");
         ValidatorUtil.builder()
                 .append(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败")
@@ -208,10 +209,20 @@ public class WorkflowUtil {
                 .append(title, StrUtil::isBlank, "流程标题不能为空")
                 .validate();
         User user = null;
-        if (StrUtil.isNotBlank(userId) && NumberUtil.isInteger(userId)) {
-            user = User.getUser(NumberUtil.parseInt(userId), 0);
-        } else {
+        if (StrUtil.isBlank(userId)) {
             user = User.getUser(1, 0);
+        } else {
+            if (isWorkCode) {
+                userId = HrmUtil.convertWorkCodesToUserIds(userId);
+                UTILS.writeLog(StrUtil.format("creator workCode  convert to id ::: {}", userId));
+                if (StrUtil.isNotBlank(userId) && NumberUtil.isInteger(userId)) {
+                    user = User.getUser(NumberUtil.parseInt(userId), 0);
+                } else {
+                    user = User.getUser(1, 0);
+                }
+            } else {
+                user = User.getUser(NumberUtil.parseInt(userId), 0);
+            }
         }
         ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
         entity.setWorkflowId(workflowId);
