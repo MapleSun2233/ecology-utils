@@ -298,7 +298,7 @@ public class WorkflowUtil {
         for (int j = 0; j < linesLength; j++) {
             JSONArray fieldsData = linesData.getJSONArray(j);
             WorkflowRequestTableRecord requestTableRecord = new WorkflowRequestTableRecord();
-            requestTableRecord.setRecordOrder(j);
+            requestTableRecord.setRecordOrder(0);
             requestTableRecord.setWorkflowRequestTableFields(buildFields(fieldsData, convertFields));
             workflowRequestTableRecords[j] = requestTableRecord;
         }
