@@ -4,6 +4,7 @@ import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.http.HtmlUtil;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.engine.common.util.ServiceUtil;
@@ -131,69 +132,6 @@ public class WorkflowUtil {
      *
      * @param createEntity createEntity
      * @return PAResponseEntity result
-     *
-     * {
-     *     "workflowId": 28,
-     *     "title": "流程工具测试流程8",
-     *     "creator": 1,
-     *     "isSubmit": true,
-     *     "remark": "<h1 style='color:red'>审批</h1>",
-     *     "mainData": {
-     *         "convertFields": {
-     *             "drl": "employee",
-     *             "dbm": "department",
-     *             "dgs": "company"
-     *         },
-     *         "fields": [
-     *             {
-     *                 "fieldName": "wb",
-     *                 "fieldValue": "我是文本"
-     *             },
-     *             {
-     *                 "fieldName": "drl",
-     *                 "fieldValue": "1,2,3"
-     *             },
-     *             {
-     *                 "fieldName": "dbm",
-     *                 "fieldValue": "sssss"
-     *             },
-     *             {
-     *                 "fieldName": "dgs",
-     *                 "fieldValue": "comp1"
-     *             }
-     *         ]
-     *     },
-     *     "detailData": [
-     *         {
-     *             "detailTableName": "dt1",
-     *             "convertFields": {
-     *                 "drl": "employee",
-     *                 "dbm": "department",
-     *                 "dfb": "company"
-     *             },
-     *             "lines": [
-     *                 [
-     *                     {
-     *                         "fieldName": "wb",
-     *                         "fieldValue": "我是文本"
-     *                     },
-     *                     {
-     *                         "fieldName": "drl",
-     *                         "fieldValue": "1,2,3"
-     *                     },
-     *                     {
-     *                         "fieldName": "dbm",
-     *                         "fieldValue": "sssss"
-     *                     },
-     *                     {
-     *                         "fieldName": "dfb",
-     *                         "fieldValue": "comp1"
-     *                     }
-     *                 ]
-     *             ]
-     *         }
-     *     ]
-     * }
      */
     public static int createWorkflow(JSONObject createEntity) {
         WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
@@ -249,7 +187,14 @@ public class WorkflowUtil {
         PAResponseEntity responseEntity = operatePa.doCreateRequest(user, entity);
         UTILS.writeLog("responseEntity :: " + JSONObject.toJSONString(responseEntity));
         if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
-            throw new RuntimeException(JSONObject.toJSONString(responseEntity.getErrMsg()));
+            StringBuilder errMsg = new StringBuilder();
+            if (!responseEntity.getErrMsg().isEmpty()) {
+                errMsg.append(JSONObject.toJSONString(responseEntity.getErrMsg()));
+            }
+            if (ObjectUtil.isNotNull(responseEntity.getReqFailMsg().getMsgInfo().get("detail"))) {
+                errMsg.append(JSONObject.toJSONString(responseEntity.getReqFailMsg().getMsgInfo().get("detail")));
+            }
+            throw new RuntimeException(HtmlUtil.cleanHtmlTag(errMsg.toString()));
         }
         return JSONObject.parseObject(JSONObject.toJSONString(responseEntity.getData())).getInteger("requestid");
     }
