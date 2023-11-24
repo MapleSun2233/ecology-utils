@@ -64,4 +64,16 @@ public class DataConvertUtil {
     public static boolean equalsZero(double d) {
         return equalsZero(BigDecimal.valueOf(d));
     }
+
+    /**
+     * 拆分id为字符串数组
+     * @param ids ids
+     * @return arr
+     */
+    public static String[] splitIdsToStrArr(String ids) {
+        if (StrUtil.isBlank(ids)) {
+            return new String[0];
+        }
+        return StrUtil.cleanBlank(ids).split(StrUtil.COMMA);
+    }
 }
