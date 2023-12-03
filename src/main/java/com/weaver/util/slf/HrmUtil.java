@@ -3,6 +3,7 @@ package com.weaver.util.slf;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
 import weaver.conn.RecordSet;
+import weaver.general.BaseBean;
 import weaver.hrm.User;
 
 import java.util.HashSet;
@@ -14,7 +15,7 @@ import java.util.stream.Collectors;
  * @date 2023/10/31
  */
 public class HrmUtil {
-
+    private static BaseBean UTILS = new BaseBean();
     /**
      * 兼容workCode获取user
      * @param userId 用户id或工号
@@ -23,13 +24,16 @@ public class HrmUtil {
      */
     public static User getUserCompatibleWorkCode(String userId, boolean isWorkCode) {
         if (StrUtil.isBlank(userId)) {
+            UTILS.writeLog("userId缺失， 默认获取管理员用户对象");
             return User.getUser(1, 0);
         } else {
             if (isWorkCode) {
-                userId = convertWorkCodesToUserIds(userId);
-                if (StrUtil.isNotBlank(userId) && NumberUtil.isInteger(userId)) {
-                    return User.getUser(NumberUtil.parseInt(userId), 0);
+                String realUserId = convertWorkCodesToUserIds(userId);
+                if (StrUtil.isNotBlank(realUserId) && NumberUtil.isInteger(realUserId)) {
+                    UTILS.writeLog(StrUtil.format("转换工号{}为用户ID{}", userId, realUserId));
+                    return User.getUser(NumberUtil.parseInt(realUserId), 0);
                 } else {
+                    UTILS.writeLog("工号转换失败，默认获取管理员用户对象");
                     return User.getUser(1, 0);
                 }
             } else {
@@ -46,6 +50,7 @@ public class HrmUtil {
         if (StrUtil.isBlank(workCodes)) {
             return StrUtil.EMPTY;
         }
+        UTILS.writeLog("转工号" + workCodes);
         workCodes = workCodes.replaceAll(StrUtil.COMMA, "','");
         RecordSet rs = new RecordSet();
         rs.execute(StrUtil.format("select id from HrmResource where workcode in ('{}')", workCodes));
@@ -53,6 +58,7 @@ public class HrmUtil {
         while (rs.next()) {
             userIds.add(rs.getString("id"));
         }
+        UTILS.writeLog("工号转换用户ID结果" + userIds);
         return String.join(StrUtil.COMMA, userIds);
     }
 
@@ -65,14 +71,16 @@ public class HrmUtil {
         if (StrUtil.isBlank(departmentCodes)) {
             return StrUtil.EMPTY;
         }
+        UTILS.writeLog("转部门编码" + departmentCodes);
         departmentCodes = departmentCodes.replaceAll(StrUtil.COMMA, "','");
         RecordSet rs = new RecordSet();
         rs.execute(StrUtil.format("select id from HrmDepartment where departmentcode in ('{}')", departmentCodes));
-        Set<String> userIds = new HashSet<>();
+        Set<String> deptIds = new HashSet<>();
         while (rs.next()) {
-            userIds.add(rs.getString("id"));
+            deptIds.add(rs.getString("id"));
         }
-        return String.join(StrUtil.COMMA, userIds);
+        UTILS.writeLog("部门编码转换部门ID结果" + deptIds);
+        return String.join(StrUtil.COMMA, deptIds);
     }
 
     /**
@@ -84,13 +92,15 @@ public class HrmUtil {
         if (StrUtil.isBlank(companyCodes)) {
             return StrUtil.EMPTY;
         }
+        UTILS.writeLog("转换分部编码" + companyCodes);
         companyCodes = companyCodes.replaceAll(StrUtil.COMMA, "','");
         RecordSet rs = new RecordSet();
         rs.execute(StrUtil.format("select id from HrmSubCompany where subcompanycode in ('{}')", companyCodes));
-        Set<String> userIds = new HashSet<>();
+        Set<String> subCompIds = new HashSet<>();
         while (rs.next()) {
-            userIds.add(rs.getString("id"));
+            subCompIds.add(rs.getString("id"));
         }
-        return String.join(StrUtil.COMMA, userIds);
+        UTILS.writeLog("分部编码转分部ID结果" + subCompIds);
+        return String.join(StrUtil.COMMA, subCompIds);
     }
 }
