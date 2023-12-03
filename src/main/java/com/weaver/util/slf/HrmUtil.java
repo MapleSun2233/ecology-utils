@@ -1,7 +1,9 @@
 package com.weaver.util.slf;
 
+import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
 import weaver.conn.RecordSet;
+import weaver.hrm.User;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -12,6 +14,29 @@ import java.util.stream.Collectors;
  * @date 2023/10/31
  */
 public class HrmUtil {
+
+    /**
+     * 兼容workCode获取user
+     * @param userId 用户id或工号
+     * @param isWorkCode 是否是工号
+     * @return 用户对象
+     */
+    public static User getUserCompatibleWorkCode(String userId, boolean isWorkCode) {
+        if (StrUtil.isBlank(userId)) {
+            return User.getUser(1, 0);
+        } else {
+            if (isWorkCode) {
+                userId = convertWorkCodesToUserIds(userId);
+                if (StrUtil.isNotBlank(userId) && NumberUtil.isInteger(userId)) {
+                    return User.getUser(NumberUtil.parseInt(userId), 0);
+                } else {
+                    return User.getUser(1, 0);
+                }
+            } else {
+                return User.getUser(NumberUtil.parseInt(userId), 0);
+            }
+        }
+    }
     /**
      * 工号转用户id
      * @param workCodes 工号

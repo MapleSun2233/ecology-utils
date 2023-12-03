@@ -44,6 +44,7 @@ public class WorkflowUtil {
      * @param remark    签字意见
      * @return boolean 操作结果
      */
+    @Deprecated
     public static boolean submitWorkflow(int requestId, int nodeId, List<WorkflowRequestTableField> fields, String remark) {
         RecordSet rs = new RecordSet();
         WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
@@ -77,6 +78,7 @@ public class WorkflowUtil {
      * @param fields     字段赋值列表
      * @return jsonObject
      */
+    @Deprecated
     public static JSONObject createWorkflow(int workflowId, String title, User user, List<WorkflowRequestTableField> fields) {
         JSONObject res = new JSONObject();
         res.put("status", true);
@@ -104,6 +106,7 @@ public class WorkflowUtil {
      * @param userId 用户id
      * @param requestId 流程id
      */
+    @Deprecated
     public static void deleteRequest(String userId, int requestId) {
         Map<String, Integer> nowNodeInfo = getNowNodeInfoByRequestId(requestId);
         WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
@@ -123,6 +126,27 @@ public class WorkflowUtil {
         PAResponseEntity responseEntity = operatePa.deleteRequest(user, entity);
         if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
             throw new RuntimeException(StrUtil.format("删除失败，流程{}操作者无权删除", requestId));
+        }
+        UTILS.writeLog("delete request ::: " + requestId);
+    }
+    public static void deleteRequest(JSONObject deleteEntity) {
+        WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
+        ValidatorUtil.validate(deleteEntity.getString("requestId"), t -> StrUtil.isBlank(t) || !NumberUtil.isNumber(t), "requestId参数异常");
+        int requestId = deleteEntity.getInteger("requestId");
+        Map<String, Integer> nowNodeInfo = getNowNodeInfoByRequestId(requestId);
+        ValidatorUtil.builder()
+                .append(nowNodeInfo, Map::isEmpty, StrUtil.format("删除失败，流程{}不存在", requestId))
+                .append(nowNodeInfo.get("nowNodeType"), s -> s != 0, StrUtil.format("删除失败，流程{}处于非创建节点", requestId))
+                .append(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败")
+                .validate();
+        String userId = deleteEntity.getString("operator");
+        boolean isWorkCode = Optional.ofNullable(deleteEntity.getBoolean("operatorIsWorkCode")).orElse(false);
+        User user = HrmUtil.getUserCompatibleWorkCode(userId, isWorkCode);
+        ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
+        entity.setRequestId(requestId);
+        PAResponseEntity responseEntity = operatePa.deleteRequest(user, entity);
+        if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
+            handleResponseEntityForFailure(responseEntity);
         }
         UTILS.writeLog("delete request ::: " + requestId);
     }
@@ -146,22 +170,7 @@ public class WorkflowUtil {
                 .append(tableName, StrUtil::isBlank, "流程数据表获取失败")
                 .append(title, StrUtil::isBlank, "流程标题不能为空")
                 .validate();
-        User user = null;
-        if (StrUtil.isBlank(userId)) {
-            user = User.getUser(1, 0);
-        } else {
-            if (isWorkCode) {
-                userId = HrmUtil.convertWorkCodesToUserIds(userId);
-                UTILS.writeLog(StrUtil.format("creator workCode  convert to id ::: {}", userId));
-                if (StrUtil.isNotBlank(userId) && NumberUtil.isInteger(userId)) {
-                    user = User.getUser(NumberUtil.parseInt(userId), 0);
-                } else {
-                    user = User.getUser(1, 0);
-                }
-            } else {
-                user = User.getUser(NumberUtil.parseInt(userId), 0);
-            }
-        }
+        User user = HrmUtil.getUserCompatibleWorkCode(userId, isWorkCode);
         ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
         entity.setWorkflowId(workflowId);
         entity.setRequestName(title);
@@ -187,16 +196,24 @@ public class WorkflowUtil {
         PAResponseEntity responseEntity = operatePa.doCreateRequest(user, entity);
         UTILS.writeLog("responseEntity :: " + JSONObject.toJSONString(responseEntity));
         if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
-            StringBuilder errMsg = new StringBuilder();
-            if (!responseEntity.getErrMsg().isEmpty()) {
-                errMsg.append(JSONObject.toJSONString(responseEntity.getErrMsg()));
-            }
-            if (ObjectUtil.isNotNull(responseEntity.getReqFailMsg().getMsgInfo().get("detail"))) {
-                errMsg.append(JSONObject.toJSONString(responseEntity.getReqFailMsg().getMsgInfo().get("detail")));
-            }
-            throw new RuntimeException(HtmlUtil.cleanHtmlTag(errMsg.toString()));
+            handleResponseEntityForFailure(responseEntity);
         }
         return JSONObject.parseObject(JSONObject.toJSONString(responseEntity.getData())).getInteger("requestid");
+    }
+
+    /**
+     * 处理流程操作错误信息
+     * @param responseEntity 错误返回体
+     */
+    private static void handleResponseEntityForFailure(PAResponseEntity responseEntity) {
+        StringBuilder errMsg = new StringBuilder();
+        if (!responseEntity.getErrMsg().isEmpty()) {
+            errMsg.append(JSONObject.toJSONString(responseEntity.getErrMsg()));
+        }
+        if (ObjectUtil.isNotNull(responseEntity.getReqFailMsg().getMsgInfo().get("detail"))) {
+            errMsg.append(JSONObject.toJSONString(responseEntity.getReqFailMsg().getMsgInfo().get("detail")));
+        }
+        throw new RuntimeException(HtmlUtil.cleanHtmlTag(errMsg.toString()));
     }
 
     /**
