@@ -146,7 +146,7 @@ public class WorkflowUtil {
         entity.setRequestId(requestId);
         PAResponseEntity responseEntity = operatePa.deleteRequest(user, entity);
         if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
-            handleResponseEntityForFailure(responseEntity);
+            handleResponseEntityForFailure(responseEntity, "删除流程失败，请检查操作者是否是流程创建者");
         }
         UTILS.writeLog("delete request ::: " + requestId);
     }
@@ -196,7 +196,7 @@ public class WorkflowUtil {
         PAResponseEntity responseEntity = operatePa.doCreateRequest(user, entity);
         UTILS.writeLog("responseEntity :: " + JSONObject.toJSONString(responseEntity));
         if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
-            handleResponseEntityForFailure(responseEntity);
+            handleResponseEntityForFailure(responseEntity, "流程创建/提交失败，请检查参数信息");
         }
         return JSONObject.parseObject(JSONObject.toJSONString(responseEntity.getData())).getInteger("requestid");
     }
@@ -204,8 +204,9 @@ public class WorkflowUtil {
     /**
      * 处理流程操作错误信息
      * @param responseEntity 错误返回体
+     * @param additionalMsg 附加消息
      */
-    private static void handleResponseEntityForFailure(PAResponseEntity responseEntity) {
+    private static void handleResponseEntityForFailure(PAResponseEntity responseEntity, String additionalMsg) {
         StringBuilder errMsg = new StringBuilder();
         if (!responseEntity.getErrMsg().isEmpty()) {
             errMsg.append(JSONObject.toJSONString(responseEntity.getErrMsg()));
@@ -213,7 +214,7 @@ public class WorkflowUtil {
         if (ObjectUtil.isNotNull(responseEntity.getReqFailMsg().getMsgInfo().get("detail"))) {
             errMsg.append(JSONObject.toJSONString(responseEntity.getReqFailMsg().getMsgInfo().get("detail")));
         }
-        throw new RuntimeException(HtmlUtil.cleanHtmlTag(errMsg.toString()));
+        throw new RuntimeException(HtmlUtil.cleanHtmlTag(errMsg.toString()) + additionalMsg);
     }
 
     /**
