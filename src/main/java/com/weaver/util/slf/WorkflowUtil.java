@@ -208,11 +208,16 @@ public class WorkflowUtil {
      */
     private static void handleResponseEntityForFailure(PAResponseEntity responseEntity, String additionalMsg) {
         StringBuilder errMsg = new StringBuilder();
-        if (!responseEntity.getErrMsg().isEmpty()) {
-            errMsg.append(JSONObject.toJSONString(responseEntity.getErrMsg()));
-        }
-        if (ObjectUtil.isNotNull(responseEntity.getReqFailMsg().getMsgInfo().get("detail"))) {
-            errMsg.append(JSONObject.toJSONString(responseEntity.getReqFailMsg().getMsgInfo().get("detail")));
+        try {
+            if (!responseEntity.getErrMsg().isEmpty()) {
+                errMsg.append(JSONObject.toJSONString(responseEntity.getErrMsg()));
+            }
+            if (ObjectUtil.isNotNull(responseEntity.getReqFailMsg().getMsgInfo().get("detail"))) {
+                errMsg.append(JSONObject.toJSONString(responseEntity.getReqFailMsg().getMsgInfo().get("detail")));
+            }
+        } catch (Exception e) {
+            UTILS.writeLog(e.getMessage());
+            UTILS.writeLog(JSONObject.toJSONString(responseEntity));
         }
         throw new RuntimeException(HtmlUtil.cleanHtmlTag(errMsg.toString()) + additionalMsg);
     }
