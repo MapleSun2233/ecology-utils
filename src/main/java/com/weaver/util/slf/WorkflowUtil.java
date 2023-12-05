@@ -103,7 +103,7 @@ public class WorkflowUtil {
     /**
      * 删除流程
      *
-     * @param userId 用户id
+     * @param userId    用户id
      * @param requestId 流程id
      */
     @Deprecated
@@ -129,6 +129,12 @@ public class WorkflowUtil {
         }
         UTILS.writeLog("delete request ::: " + requestId);
     }
+
+    /**
+     * 删除流程
+     *
+     * @param deleteEntity 参数实体
+     */
     public static void deleteRequest(JSONObject deleteEntity) {
         WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
         ValidatorUtil.validate(deleteEntity.getString("requestId"), t -> StrUtil.isBlank(t) || !NumberUtil.isNumber(t), "requestId参数异常");
@@ -136,7 +142,7 @@ public class WorkflowUtil {
         Map<String, Integer> nowNodeInfo = getNowNodeInfoByRequestId(requestId);
         ValidatorUtil.builder()
                 .append(nowNodeInfo, Map::isEmpty, StrUtil.format("删除失败，流程{}不存在", requestId))
-                .append(nowNodeInfo.get("nowNodeType"), s -> s != 0, StrUtil.format("删除失败，流程{}处于非创建节点", requestId))
+                .append(nowNodeInfo.get("nowNodeType"), s -> s == 3, StrUtil.format("删除失败，流程{}已归档", requestId))
                 .append(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败")
                 .validate();
         String userId = deleteEntity.getString("operator");
@@ -144,7 +150,19 @@ public class WorkflowUtil {
         User user = HrmUtil.getUserCompatibleWorkCode(userId, isWorkCode);
         ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
         entity.setRequestId(requestId);
-        PAResponseEntity responseEntity = operatePa.deleteRequest(user, entity);
+        PAResponseEntity responseEntity;
+        if (nowNodeInfo.get("nowNodeType") != 0) {
+            boolean allowDelete = Optional.ofNullable(deleteEntity.getBoolean("allowDelete")).orElse(false);
+            if (allowDelete) {
+                responseEntity = operatePa.withdrawRequest(user, entity);
+                if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
+                    handleResponseEntityForFailure(responseEntity, "撤销审批中流程失败");
+                }
+            } else {
+                throw new RuntimeException("流程删除失败，当前流程已处于审批中禁止删除！");
+            }
+        }
+        responseEntity = operatePa.deleteRequest(user, entity);
         if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
             handleResponseEntityForFailure(responseEntity, "删除流程失败，请检查操作者是否是流程创建者");
         }
@@ -203,11 +221,22 @@ public class WorkflowUtil {
 
     /**
      * 处理流程操作错误信息
+     *
      * @param responseEntity 错误返回体
-     * @param additionalMsg 附加消息
+     * @param additionalMsg  附加消息
      */
     private static void handleResponseEntityForFailure(PAResponseEntity responseEntity, String additionalMsg) {
         StringBuilder errMsg = new StringBuilder();
+        switch (responseEntity.getCode()) {
+            case PARAM_ERROR:
+                errMsg.append("参数错误，");
+                break;
+            case NO_PERMISSION:
+            case SYSTEM_INNER_ERROR:
+                errMsg.append("该用户无权限或当前所处节点不允许撤回，");
+                break;
+            default:
+        }
         try {
             if (!responseEntity.getErrMsg().isEmpty()) {
                 errMsg.append(JSONObject.toJSONString(responseEntity.getErrMsg()));
@@ -329,8 +358,9 @@ public class WorkflowUtil {
 
     /**
      * 用于解决通用流程创建附件上传无法直接传递base64的问题，使用字节数组转换
+     *
      * @param fieldValue fieldValue
-     * @return  fieldValue
+     * @return fieldValue
      */
     private static String convertJsonFileList(String fieldValue) {
         JSONArray list = JSONArray.parseArray(fieldValue);
