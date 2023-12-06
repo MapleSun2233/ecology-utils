@@ -7,6 +7,7 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.engine.workflow.util.HttpServletRequestUtil;
+import weaver.general.BaseBean;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.BufferedReader;
@@ -22,6 +23,7 @@ import java.util.regex.Pattern;
  * @date 2023/8/1
  */
 public class JsonUtil {
+    private static BaseBean UTILS = new BaseBean();
     private static Pattern JUDGE_SCIENTIFIC_NOTATION = Pattern.compile("^[+-]?\\d+\\.?\\d*[Ee][+-]?\\d+$");
 
     /**
@@ -124,6 +126,42 @@ public class JsonUtil {
      */
     public static String buildFailureResult(String msg) {
         return buildStandardResult(false, msg, null);
+    }
+
+    /**
+     * 安全解析JSONObject
+     * @param json json
+     * @param isReturnEmpty boolean
+     * @return jsonObject
+     */
+    public static JSONObject securityParseJsonObject(String json, boolean isReturnEmpty) {
+        try {
+            return JSONObject.parseObject(json);
+        } catch (Exception e) {
+            UTILS.writeLog("json解析失败, json ::: " + json);
+            if (isReturnEmpty) {
+                return new JSONObject();
+            }
+            return null;
+        }
+    }
+
+    /**
+     * 安全解析JSONArray
+     * @param json json
+     * @param isReturnEmpty boolean
+     * @return jsonArray
+     */
+    public static JSONArray securityParseJsonArray(String json, boolean isReturnEmpty) {
+        try {
+            return JSONArray.parseArray(json);
+        } catch (Exception e) {
+            UTILS.writeLog("json解析失败, json ::: " + json);
+            if (isReturnEmpty) {
+                return new JSONArray();
+            }
+            return null;
+        }
     }
 
 }
