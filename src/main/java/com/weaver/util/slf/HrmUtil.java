@@ -2,13 +2,13 @@ package com.weaver.util.slf;
 
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import weaver.conn.RecordSet;
 import weaver.general.BaseBean;
 import weaver.hrm.User;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.*;
 
 /**
  * @author slf
@@ -102,5 +102,63 @@ public class HrmUtil {
         }
         UTILS.writeLog("分部编码转分部ID结果" + subCompIds);
         return String.join(StrUtil.COMMA, subCompIds);
+    }
+
+    /**
+     * 获取不带分部的部门树
+     * @return
+     */
+    public JSONObject getDepartmentTreeWithoutCompany() {
+        RecordSet rs = new RecordSet();
+        Map<Integer, JSONObject> deptMap = new HashMap<>();
+        LinkedList<JSONObject> handleQueue = new LinkedList<>();
+        JSONArray subDepartments = new JSONArray();
+        // 1. 获取所有的一级部门，并建立索引映射
+        rs.execute("select id, departmentname, departmentcode, canceled from HrmDepartment where supdepid is null or supdepid = 0");
+        while (rs.next()) {
+            int id = rs.getInt("id");
+            JSONObject item = new JSONObject();
+            item.put("id", id);
+            item.put("name", rs.getString("departmentname"));
+            item.put("code", rs.getString("departmentcode"));
+            item.put("canceled", StrUtil.equals("1", rs.getString("canceled")) ? true : false);
+            item.put("subDepartments", new JSONArray());
+            item.put("parent", 0);
+            subDepartments.add(item);
+            deptMap.put(id, item);
+        }
+        // 2. 获取所有非一级部门，循环处理，并建立索引映射，直到所有部门被处理完毕
+        rs.execute("select id, departmentname, departmentcode, supdepid, canceled from HrmDepartment where supdepid  > 0");
+        while (rs.next()) {
+            int id = rs.getInt("id");
+            int parent = rs.getInt("supdepid");
+            JSONObject item = new JSONObject();
+            item.put("id", id);
+            item.put("name", rs.getString("departmentname"));
+            item.put("code", rs.getString("departmentcode"));
+            item.put("canceled", StrUtil.equals("1", rs.getString("canceled")) ? true : false);
+            item.put("subDepartments", new JSONArray());
+            item.put("parent", parent);
+            if (deptMap.containsKey(parent)) {
+                deptMap.get(parent).getJSONArray("subDepartments").add(item);
+                deptMap.put(id, item);
+            } else {
+                handleQueue.offerLast(item);
+            }
+        }
+        while (!handleQueue.isEmpty()) {
+            JSONObject item = handleQueue.pollFirst();
+            int parent = item.getInteger("parent");
+            if (deptMap.containsKey(parent)) {
+                deptMap.get(parent).getJSONArray("subDepartments").add(item);
+                deptMap.put(item.getInteger("id"), item);
+            } else {
+                handleQueue.offerLast(item);
+            }
+        }
+        JSONObject root = new JSONObject();
+        root.put("name", "root");
+        root.put("subDepartments", subDepartments);
+        return root;
     }
 }
