@@ -232,8 +232,10 @@ public class WorkflowUtil {
                 errMsg.append("参数错误，");
                 break;
             case NO_PERMISSION:
+                errMsg.append("权限不足，");
+                break;
             case SYSTEM_INNER_ERROR:
-                errMsg.append("该用户无权限或当前所处节点不允许撤回，");
+                errMsg.append("系统错误，");
                 break;
             default:
         }
