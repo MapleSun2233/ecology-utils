@@ -161,4 +161,18 @@ public class HrmUtil {
         root.put("subDepartments", subDepartments);
         return root;
     }
+
+    /**
+     * 根据用户id获取部门id
+     * @param userId 用户id
+     * @return 部门id
+     */
+    public static int getDepartmentIdByUserId(int userId) {
+        RecordSet rs = new RecordSet();
+        if (rs.execute("select departmentid from HrmResource where id = " + userId) && rs.next()) {
+            return rs.getInt("departmentid");
+        } else {
+            return -1;
+        }
+    }
 }
