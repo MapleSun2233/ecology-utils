@@ -435,7 +435,8 @@ public class WorkflowUtil {
         if (rs.next()) {
             headline = rs.getString("requestname");
         }
-        return MapUtil.builder(new HashMap<String, String>(7))
+        return MapUtil.builder(new HashMap<String, String>(8))
+                .put("mainId", String.valueOf(requestManager.getBillid()))
                 .put("workflowId", requestInfo.getWorkflowid())
                 .put("requestId", requestInfo.getRequestid())
                 .put("currentNodeId", String.valueOf(requestManager.getNodeid()))
