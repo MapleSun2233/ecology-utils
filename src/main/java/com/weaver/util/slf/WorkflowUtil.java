@@ -494,7 +494,7 @@ public class WorkflowUtil {
     public static Map<String, String> getBaseInfoByRequestId(int requestId) {
         RecordSet rs = new RecordSet();
         if (rs.executeQuery("select a.requestid as requestId, a.currentnodeid as currentNodeId, b.id as workflowId, c.id as formId, c.tablename as tableName from (select requestid, workflowid, currentnodeid from workflow_requestbase where requestid = ?) a left join workflow_base b on a.workflowid = b.id left join workflow_bill c on b.formid = c.id", requestId) && rs.next()) {
-            return MapUtil.builder(new HashMap<String, String>(4))
+            return MapUtil.builder(new HashMap<String, String>(6))
                     .put("requestId", rs.getString("requestId"))
                     .put("workflowId", rs.getString("workflowId"))
                     .put("formId", rs.getString("formId"))
@@ -503,6 +503,35 @@ public class WorkflowUtil {
                     .build();
         }
         return MapUtil.newHashMap();
+    }
+
+    /**
+     * 获取数据mainId
+     * @param requestId requestId
+     * @param tableName tableName
+     * @param rs rs
+     * @return mainId
+     */
+    public static int getMainIdBaseRequestIdAndTableName(String requestId, String tableName, RecordSet rs) {
+        if (ObjectUtil.isNull(rs)) {
+            return getMainIdBaseRequestIdAndTableName(requestId, tableName);
+        }
+        if (rs.executeQuery(StrUtil.format("select id from {} where requestid={}", tableName, requestId)) && rs.next()) {
+            return rs.getInt("id");
+        } else {
+            return -1;
+        }
+    }
+
+    /**
+     * 获取数据mainId
+     * @param requestId requestId
+     * @param tableName tableName
+     * @return mainId
+     */
+    public static int getMainIdBaseRequestIdAndTableName(String requestId, String tableName) {
+        RecordSet rs = new RecordSet();
+        return getMainIdBaseRequestIdAndTableName(requestId, tableName, rs);
     }
 
     /**
