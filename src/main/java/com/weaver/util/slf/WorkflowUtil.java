@@ -500,6 +500,7 @@ public class WorkflowUtil {
                     .put("formId", rs.getString("formId"))
                     .put("tableName", rs.getString("tableName"))
                     .put("currentNodeId", rs.getString("currentNodeId"))
+                    .put("mainId", String.valueOf(getMainIdBaseRequestIdAndTableName(rs.getString("requestId"), rs.getString("tableName"), rs)))
                     .build();
         }
         return MapUtil.newHashMap();
