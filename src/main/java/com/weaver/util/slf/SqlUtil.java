@@ -14,18 +14,21 @@ import java.util.Arrays;
  * sql工具
  */
 public class SqlUtil {
-    private static final BaseBean utils = new BaseBean();
-
+    private static final BaseBean UTILS = new BaseBean();
+    private static final String[] SENSITIVE_WORDS = {"delete", "update", "into", ";", "drop"};
     /**
      * 执行任意sql结果转jsonArr
      * @param sql sql
      * @return jsonArr
      */
     public static JSONArray executeAndToJson(String sql) {
-        ValidatorUtil.validate(sql, s -> !s.toLowerCase().startsWith("select"), "sql配置错误，该方式禁止用于修改数据！");
+        ValidatorUtil.builder()
+                .append(sql.toLowerCase(), s -> !s.startsWith("select"), "sql配置错误，该方式禁止用于修改数据！")
+                .append(sql.toLowerCase(), s -> Arrays.stream(SENSITIVE_WORDS).anyMatch(s::contains), "安全检查未通过，请勿包含敏感词！")
+                .validate();
         RecordSet rs = new RecordSet();
         if (!rs.execute(sql)) {
-            utils.writeLog("SQL执行出错 :: " + sql);
+            UTILS.writeLog("SQL执行出错 :: " + sql);
             throw new RuntimeException("SQL执行出错，请检查SQL配置");
         }
         String[] columns = rs.getColumnName();
