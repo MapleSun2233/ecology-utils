@@ -100,13 +100,21 @@ public class ConfigUtil {
      * @return config
      */
     public static Map<String, String> readConfigFromTable(String tableName, String configNameField, String configValueField) {
-        RecordSet rs = new RecordSet();
-        rs.execute(StrUtil.format("select {},{} from {}", configNameField, configValueField, tableName));
-        Map<String, String> config = new HashMap<>(rs.getCounts());
-        while (rs.next()) {
-            config.put(rs.getString(configNameField), rs.getString(configValueField));
+        try {
+            RecordSet rs = new RecordSet();
+            String sql = StrUtil.format("select {},{} from {}", configNameField, configValueField, tableName);
+            UTILS.writeLog("read config from table, sql :: " + sql);
+            rs.execute(sql);
+            Map<String, String> config = new HashMap<>(rs.getCounts());
+            while (rs.next()) {
+                config.put(rs.getString(configNameField), rs.getString(configValueField));
+            }
+            UTILS.writeLog(tableName + " ::: " + config);
+            return config;
+        } catch (Exception e) {
+            UTILS.writeLog("config read error :: " + e.getMessage());
+            return Collections.emptyMap();
         }
-        return config;
     }
     /**
      * 从数据库表根据条件获取配置
@@ -117,12 +125,20 @@ public class ConfigUtil {
      * @return config
      */
     public static Map<String, String> readConfigFromTableOnCondition(String tableName, String configNameField, String configValueField, String condition) {
-        RecordSet rs = new RecordSet();
-        rs.execute(StrUtil.format("select {},{} from {} where {}", configNameField, configValueField, tableName, condition));
-        Map<String, String> config = new HashMap<>(rs.getCounts());
-        while (rs.next()) {
-            config.put(rs.getString(configNameField), rs.getString(configValueField));
+        try {
+            RecordSet rs = new RecordSet();
+            String sql = StrUtil.format("select {},{} from {} where {}", configNameField, configValueField, tableName, condition);
+            UTILS.writeLog("read config from table, sql :: " + sql);
+            rs.execute(sql);
+            Map<String, String> config = new HashMap<>(rs.getCounts());
+            while (rs.next()) {
+                config.put(rs.getString(configNameField), rs.getString(configValueField));
+            }
+            UTILS.writeLog(tableName + " ::: " + config);
+            return config;
+        } catch (Exception e) {
+            UTILS.writeLog("config read error :: " + e.getMessage());
+            return Collections.emptyMap();
         }
-        return config;
     }
 }
