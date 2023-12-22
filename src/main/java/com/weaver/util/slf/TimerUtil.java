@@ -11,6 +11,10 @@ import java.util.TimerTask;
  * 定时器工具
  */
 public class TimerUtil {
+    public static long SECOND = 1000;
+    public static long MINUTE = 60 * SECOND;
+    public static long HOUR = 60 * MINUTE;
+    public static long DAY = 24 * HOUR;
     /**
      * 延迟时间后执行一次， 单位毫秒
      * @param task 任务
