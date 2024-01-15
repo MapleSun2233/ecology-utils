@@ -9,6 +9,7 @@ import weaver.general.BaseBean;
 import weaver.hrm.User;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author slf
@@ -51,15 +52,18 @@ public class HrmUtil {
             return StrUtil.EMPTY;
         }
         UTILS.writeLog("转工号" + workCodes);
+        String[] codeRecord = workCodes.replaceAll(StrUtil.SPACE, StrUtil.EMPTY).split(StrUtil.COMMA);
         workCodes = workCodes.replaceAll(StrUtil.COMMA, "','");
         RecordSet rs = new RecordSet();
-        rs.execute(StrUtil.format("select id from HrmResource where workcode in ('{}')", workCodes));
-        Set<String> userIds = new HashSet<>();
+        rs.execute(StrUtil.format("select id, workcode from HrmResource where workcode in ('{}')", workCodes));
+        Map<String, String> userIds = new HashMap<>(rs.getCounts());
         while (rs.next()) {
-            userIds.add(rs.getString("id"));
+            userIds.put(rs.getString("workcode"), rs.getString("id"));
         }
         UTILS.writeLog("工号转换用户ID结果" + userIds);
-        return String.join(StrUtil.COMMA, userIds);
+        String failCodes = Arrays.stream(codeRecord).filter(code -> !userIds.containsKey(code)).collect(Collectors.joining(StrUtil.COMMA));
+        ValidatorUtil.validate(failCodes, StrUtil::isNotBlank, StrUtil.format("工号转换失败，{}不存在", failCodes));
+        return String.join(StrUtil.COMMA, userIds.values());
     }
 
     /**
@@ -72,15 +76,18 @@ public class HrmUtil {
             return StrUtil.EMPTY;
         }
         UTILS.writeLog("转部门编码" + departmentCodes);
+        String[] codeRecord = departmentCodes.replaceAll(StrUtil.SPACE, StrUtil.EMPTY).split(StrUtil.COMMA);
         departmentCodes = departmentCodes.replaceAll(StrUtil.COMMA, "','");
         RecordSet rs = new RecordSet();
-        rs.execute(StrUtil.format("select id from HrmDepartment where departmentcode in ('{}')", departmentCodes));
-        Set<String> deptIds = new HashSet<>();
+        rs.execute(StrUtil.format("select id, departmentcode from HrmDepartment where departmentcode in ('{}')", departmentCodes));
+        Map<String, String> deptIds = new HashMap<>(rs.getCounts());
         while (rs.next()) {
-            deptIds.add(rs.getString("id"));
+            deptIds.put(rs.getString("departmentcode"), rs.getString("id"));
         }
         UTILS.writeLog("部门编码转换部门ID结果" + deptIds);
-        return String.join(StrUtil.COMMA, deptIds);
+        String failCodes = Arrays.stream(codeRecord).filter(code -> !deptIds.containsKey(code)).collect(Collectors.joining(StrUtil.COMMA));
+        ValidatorUtil.validate(failCodes, StrUtil::isNotBlank, StrUtil.format("部门编码转换失败，{}不存在", failCodes));
+        return String.join(StrUtil.COMMA, deptIds.values());
     }
 
     /**
@@ -93,15 +100,18 @@ public class HrmUtil {
             return StrUtil.EMPTY;
         }
         UTILS.writeLog("转换分部编码" + companyCodes);
+        String[] codeRecord = companyCodes.replaceAll(StrUtil.SPACE, StrUtil.EMPTY).split(StrUtil.COMMA);
         companyCodes = companyCodes.replaceAll(StrUtil.COMMA, "','");
         RecordSet rs = new RecordSet();
-        rs.execute(StrUtil.format("select id from HrmSubCompany where subcompanycode in ('{}')", companyCodes));
-        Set<String> subCompIds = new HashSet<>();
+        rs.execute(StrUtil.format("select id, subcompanycode from HrmSubCompany where subcompanycode in ('{}')", companyCodes));
+        Map<String, String> subCompIds = new HashMap<>(rs.getCounts());
         while (rs.next()) {
-            subCompIds.add(rs.getString("id"));
+            subCompIds.put(rs.getString("subcompanycode"), rs.getString("id"));
         }
         UTILS.writeLog("分部编码转分部ID结果" + subCompIds);
-        return String.join(StrUtil.COMMA, subCompIds);
+        String failCodes = Arrays.stream(codeRecord).filter(code -> !subCompIds.containsKey(code)).collect(Collectors.joining(StrUtil.COMMA));
+        ValidatorUtil.validate(failCodes, StrUtil::isNotBlank, StrUtil.format("分部编码转换失败，{}不存在", failCodes));
+        return String.join(StrUtil.COMMA, subCompIds.values());
     }
 
     /**
