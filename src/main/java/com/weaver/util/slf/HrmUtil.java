@@ -116,9 +116,9 @@ public class HrmUtil {
 
     /**
      * 获取不带分部的部门树
-     * @return
+     * @return tree
      */
-    public JSONObject getDepartmentTreeWithoutCompany() {
+    public static JSONObject getDepartmentTreeWithoutCompany() {
         RecordSet rs = new RecordSet();
         Map<Integer, JSONObject> deptMap = new HashMap<>();
         LinkedList<JSONObject> handleQueue = new LinkedList<>();
