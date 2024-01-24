@@ -76,4 +76,17 @@ public class DataConvertUtil {
         }
         return StrUtil.cleanBlank(ids).split(StrUtil.COMMA);
     }
+
+    /**
+     * 安全转换为double
+      * @param str str
+     * @return double
+     */
+    public static double securityToDouble(String str) {
+        if (NumberUtil.isNumber(str)) {
+            return NumberUtil.parseNumber(str).doubleValue();
+        } else {
+            return 0f;
+        }
+    }
 }
