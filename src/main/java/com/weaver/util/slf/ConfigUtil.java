@@ -2,6 +2,7 @@ package com.weaver.util.slf;
 
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import weaver.conn.RecordSet;
 import weaver.general.BaseBean;
@@ -79,6 +80,22 @@ public class ConfigUtil {
      * @param fileName 配置文件名
      * @return json
      */
+    public static JSONArray readJsonArrConfig(String fileName) {
+        JSONArray res = new JSONArray();
+        try {
+            String path = GCONST.getPropertyPath() + fileName + ".json";
+            res = JSONArray.parseArray(FileUtil.readUtf8String(path));
+            UTILS.writeLog(fileName + " config ::: " + res.toJSONString());
+        } catch (Exception e) {
+            UTILS.writeLog("config read error ::: " + e.getMessage());
+        }
+        return res;
+    }
+    /**
+     * 读取配置
+     * @param fileName 配置文件名
+     * @return json
+     */
     public static JSONObject readJsonConfigWithCache(String fileName) {
         String path = GCONST.getPropertyPath() + fileName + ".json";
         if (CacheUtil.contains(path)) {
@@ -87,6 +104,23 @@ public class ConfigUtil {
             return res;
         } else {
             JSONObject res = readJsonConfig(fileName);
+            CacheUtil.set(path, res, EXPIRE, ChronoUnit.MINUTES);
+            return res;
+        }
+    }
+    /**
+     * 读取配置
+     * @param fileName 配置文件名
+     * @return json
+     */
+    public static JSONArray readJsonArrConfigWithCache(String fileName) {
+        String path = GCONST.getPropertyPath() + fileName + ".json";
+        if (CacheUtil.contains(path)) {
+            JSONArray res = CacheUtil.get(path, JSONArray.class);
+            UTILS.writeLog(fileName + " config read from cache");
+            return res;
+        } else {
+            JSONArray res = readJsonArrConfig(fileName);
             CacheUtil.set(path, res, EXPIRE, ChronoUnit.MINUTES);
             return res;
         }
