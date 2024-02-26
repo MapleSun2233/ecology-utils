@@ -166,6 +166,24 @@ public class ModelUtil {
                 .doubleIndex(StrUtil.isBlank(config.get("doubleIndex")) ? Collections.emptyList() : Arrays.stream(config.get("doubleIndex").split(",")).filter(NumberUtil::isInteger).map(Integer::parseInt).collect(Collectors.toList()))
                 .build();
     }
+    /**
+     * 构建数据写入配置
+     *
+     * @param config config
+     * @return syncConfig
+     */
+    public static SyncWriteDataConfig buildWriteConfig(JSONObject config) {
+        String[] emptyArr = new String[0];
+        return SyncWriteDataConfig.builder()
+                .remoteFields(StrUtil.isBlank(config.getString("remoteFields")) ? emptyArr : config.getString("remoteFields").split(","))
+                .localTable(config.getString("localTable"))
+                .localFields(StrUtil.isBlank(config.getString("localFields")) ? emptyArr : config.getString("localFields").split(","))
+                .localOnlyCheckField(config.getString("localOnlyCheckField"))
+                .remoteOnlyCheckField(config.getString("remoteOnlyCheckField"))
+                .formModeId(NumberUtil.isInteger(config.getString("formModeId")) ? Integer.parseInt(config.getString("formModeId")) : null)
+                .doubleIndex(StrUtil.isBlank(config.getString("doubleIndex")) ? Collections.emptyList() : Arrays.stream(config.getString("doubleIndex").split(",")).filter(NumberUtil::isInteger).map(Integer::parseInt).collect(Collectors.toList()))
+                .build();
+    }
 
     /**
      * 插入单条数据
