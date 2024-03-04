@@ -185,4 +185,51 @@ public class HrmUtil {
             return -1;
         }
     }
+
+    /**
+     * 用户id转用户姓名，支持多人力
+     * @param userIds id列表
+     * @return 名称列表
+     */
+    public static String convertUserIdToName(String userIds) {
+        List<String> nameList = new ArrayList<>();
+        if (StrUtil.isNotBlank(userIds)) {
+            RecordSet rs = new RecordSet();
+            rs.execute(StrUtil.format("select lastname from HrmResource where id in ({})", userIds));
+            while (rs.next()) {
+                nameList.add(rs.getString("lastname"));
+            }
+        }
+        return String.join(StrUtil.COMMA, nameList);
+    }
+
+    /**
+     * 在指定的部门下，获取所有的用户id
+     * @param departmentId 部门id
+     * @return 用户id
+     */
+    public static Set<String> getAllUserIdFromDepartment(String departmentId) {
+        RecordSet rs = new RecordSet();
+        rs.execute("select id from HrmResource where departmentid = " + departmentId);
+        Set<String> set = new HashSet<>();
+        while(rs.next()) {
+            set.add(rs.getString("id"));
+        }
+        return set;
+    }
+
+    /**
+     * 在指定的部门下，获取所有的用户id
+     * @param departmentId 部门id
+     * @return 用户id
+     */
+    public static Set<Integer> getAllUserIdFromDepartment(int departmentId) {
+        RecordSet rs = new RecordSet();
+        rs.execute("select id from HrmResource where departmentid = " + departmentId);
+        Set<Integer> set = new HashSet<>();
+        while(rs.next()) {
+            set.add(rs.getInt("id"));
+        }
+        return set;
+    }
 }
