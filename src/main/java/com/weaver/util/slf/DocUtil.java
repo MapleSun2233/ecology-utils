@@ -42,8 +42,6 @@ public class DocUtil {
      */
     private static final String DOWNLOAD_TEMPLATE2 = "/weaver/weaver.file.FileDownload?fileid={}&download=1";
     private static final String DDCODE_TEMPLATE = "1_{}";
-    private static final ImageFileManager IMAGE_FILE_MANAGER = new ImageFileManager();
-    private static final DocSaveService DOC_SAVE_SERVICE = new DocSaveService();
 
     private static final BaseBean UTILS = new BaseBean();
 
@@ -77,10 +75,11 @@ public class DocUtil {
      * @return imageFileId
      */
     public static int uploadFile(String fileName, byte[] fileBytes) {
-        IMAGE_FILE_MANAGER.setImageFileType(MimeTypeUtil.getMimeType(fileName));
-        IMAGE_FILE_MANAGER.setImagFileName(fileName);
-        IMAGE_FILE_MANAGER.setData(fileBytes);
-        return IMAGE_FILE_MANAGER.saveImageFile();
+        ImageFileManager ifm = new ImageFileManager();
+        ifm.setImageFileType(MimeTypeUtil.getMimeType(fileName));
+        ifm.setImagFileName(fileName);
+        ifm.setData(fileBytes);
+        return ifm.saveImageFile();
     }
 
     /**
@@ -99,10 +98,11 @@ public class DocUtil {
      * @return imageFileId
      */
     public static int uploadFile(File file) {
-        IMAGE_FILE_MANAGER.setImageFileType(MimeTypeUtil.getMimeType(FileUtil.getName(file)));
-        IMAGE_FILE_MANAGER.setImagFileName(FileUtil.getName(file));
-        IMAGE_FILE_MANAGER.setData(FileUtil.readBytes(file));
-        return IMAGE_FILE_MANAGER.saveImageFile();
+        ImageFileManager ifm = new ImageFileManager();
+        ifm.setImageFileType(MimeTypeUtil.getMimeType(FileUtil.getName(file)));
+        ifm.setImagFileName(FileUtil.getName(file));
+        ifm.setData(FileUtil.readBytes(file));
+        return ifm.saveImageFile();
     }
 
     /**
@@ -150,7 +150,7 @@ public class DocUtil {
         if (ObjectUtil.isNull(user)) {
             return fileConvertToDoc(dirId, imageFileId);
         }
-        return DOC_SAVE_SERVICE.accForDoc(dirId, imageFileId, user);
+        return new DocSaveService().accForDoc(dirId, imageFileId, user);
     }
 
     /**
@@ -161,7 +161,7 @@ public class DocUtil {
      * @throws Exception
      */
     public static int fileConvertToDoc(int dirId, int imageFileId) throws Exception {
-        return DOC_SAVE_SERVICE.accForDoc(dirId, imageFileId, User.getUser(1, 0));
+        return new DocSaveService().accForDoc(dirId, imageFileId, User.getUser(1, 0));
     }
 
     /**
@@ -173,7 +173,7 @@ public class DocUtil {
      * @throws Exception
      */
     public static int fileConvertToDoc(int dirId, int imageFileId, int userId) throws Exception {
-        return DOC_SAVE_SERVICE.accForDoc(dirId, imageFileId, User.getUser(userId, 0));
+        return new DocSaveService().accForDoc(dirId, imageFileId, User.getUser(userId, 0));
     }
 
     /**
