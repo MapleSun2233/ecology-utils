@@ -232,4 +232,74 @@ public class HrmUtil {
         }
         return set;
     }
+
+    /**
+     * 获取当前部门及其下级部门所有的人员id
+     * @param departmentId 部门id
+     * @return 人员id列表
+     */
+    public static Set<String> getAllUserIdFromDepartmentIncludeSub(String departmentId) {
+        RecordSet rs = new RecordSet();
+        rs.execute(StrUtil.format("select id from HrmResource where departmentid in ({})", String.join(StrUtil.COMMA, getDepartmentIdListIncludeSub(departmentId))));
+        Set<String> set = new HashSet<>();
+        while(rs.next()) {
+            set.add(rs.getString("id"));
+        }
+        return set;
+    }
+    /**
+     * 获取当前部门及其下级部门所有的人员id
+     * @param departmentId 部门id
+     * @return 人员id列表
+     */
+    public static Set<Integer> getAllUserIdFromDepartmentIncludeSub(Integer departmentId) {
+        RecordSet rs = new RecordSet();
+        rs.execute(StrUtil.format("select id from HrmResource where departmentid in ({})", String.join(StrUtil.COMMA, getDepartmentIdListIncludeSub(String.valueOf(departmentId)))));
+        Set<Integer> set = new HashSet<>();
+        while(rs.next()) {
+            set.add(rs.getInt("id"));
+        }
+        return set;
+    }
+
+    /**
+     * 获取部门及其下级部门id列表
+     * @param departmentId 部门id
+     * @return 部门id列表
+     */
+    public static Set<Integer> getDepartmentIdListIncludeSub(int departmentId) {
+        Set<Integer> departmentIdList = new HashSet<>();
+        LinkedList<Integer> queue = new LinkedList<>();
+        RecordSet rs = new RecordSet();
+        queue.offerLast(departmentId);
+        departmentIdList.add(departmentId);
+        while (!queue.isEmpty()) {
+            rs.executeQuery("select id from HrmDepartment where supdepid = ?", queue.pollFirst());
+            while (rs.next()) {
+                queue.offerLast(rs.getInt("id"));
+                departmentIdList.add(rs.getInt("id"));
+            }
+        }
+        return departmentIdList;
+    }
+    /**
+     * 获取部门及其下级部门id列表
+     * @param departmentId 部门id
+     * @return 部门id列表
+     */
+    public static Set<String> getDepartmentIdListIncludeSub(String departmentId) {
+        Set<String> departmentIdList = new HashSet<>();
+        LinkedList<String> queue = new LinkedList<>();
+        RecordSet rs = new RecordSet();
+        queue.offerLast(departmentId);
+        departmentIdList.add(departmentId);
+        while (!queue.isEmpty()) {
+            rs.executeQuery("select id from HrmDepartment where supdepid = " + queue.pollFirst());
+            while (rs.next()) {
+                queue.offerLast(rs.getString("id"));
+                departmentIdList.add(rs.getString("id"));
+            }
+        }
+        return departmentIdList;
+    }
 }
