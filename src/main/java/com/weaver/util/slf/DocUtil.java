@@ -270,6 +270,17 @@ public class DocUtil {
     }
 
     /**
+     * 获取指定流程的所有附件对象
+     * @param requestId 流程id
+     * @return 附件对象列表
+     */
+    public static List<ImageFileManager> getImageFileManagerListByRequestId(int requestId) {
+        return WorkflowUtil.getAllAttachmentDocIdListByRequestId(requestId).stream()
+                .map(DocUtil::getImageFileManagerByDocId)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * 根据imageFileId获取文件流
      * @param imageFileId imageFileId
      * @return inputStream

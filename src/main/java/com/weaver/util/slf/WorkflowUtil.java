@@ -592,4 +592,74 @@ public class WorkflowUtil {
             return MapUtil.newHashMap();
         }
     }
+
+    /**
+     * 获取流程中所有附件id
+     * @param requestId requestId
+     * @return 附件id列表
+     */
+    public static Set<Integer> getAllAttachmentDocIdListByRequestId(int requestId) {
+        UTILS.writeLog("getAllAttachmentDocIdListByRequestId : " + requestId);
+        RecordSet rs = new RecordSet();
+        rs.executeQuery("select d.fieldname, c.tablename, d.detailtable, d.viewtype from workflow_requestbase a left join workflow_base b on a.workflowid = b.id left join workflow_bill c on b.formid = c.id left join workflow_billfield d on c.id = d.billid  where a.requestid = ? and d.fieldhtmltype = 6", requestId);
+        Set<Integer> attachmentIds = new HashSet<>();
+        Set<String> mainFields = new HashSet<>();
+        Map<String, Set<String>> detailFieldsMap = new HashMap<>();
+        String tableName = StrUtil.EMPTY;
+        while (rs.next()) {
+            if (StrUtil.isBlank(tableName)) {
+                tableName = rs.getString("tablename");
+                UTILS.writeLog("tablename : " + tableName);
+            }
+            switch (rs.getInt("viewtype")) {
+                // 主表
+                case 0:
+                    mainFields.add(rs.getString("fieldname"));
+                    break;
+                // 明细表
+                case 1:
+                    String detailName = rs.getString("detailtable");
+                    if (detailFieldsMap.containsKey(detailName)) {
+                        detailFieldsMap.get(detailName).add(rs.getString("fieldname"));
+                    } else {
+                        Set<String> fieldList = new HashSet<>();
+                        fieldList.add(rs.getString("fieldname"));
+                        detailFieldsMap.put(detailName, fieldList);
+                    }
+                    break;
+                default:
+            }
+        }
+        if (!mainFields.isEmpty()) {
+            String mainTableAttachmentSql = StrUtil.format("select {} from {} where requestid = {}", String.join(StrUtil.COMMA, mainFields), tableName, requestId);
+            UTILS.writeLog("mainTableAttachmentSql : " + mainTableAttachmentSql);
+            if (rs.executeQuery(mainTableAttachmentSql) && rs.next()) {
+                mainFields.stream()
+                        .map(rs::getString)
+                        .filter(StrUtil::isNotBlank)
+                        .forEach(docIds -> attachmentIds.addAll(Arrays.stream(docIds.split(StrUtil.COMMA))
+                                .map(Integer::parseInt)
+                                .collect(Collectors.toList())));
+            }
+        }
+        if (!detailFieldsMap.isEmpty()) {
+            int mainId = getMainIdBaseRequestIdAndTableName(String.valueOf(requestId), tableName, rs);
+            UTILS.writeLog("mainId : " + mainId);
+            for (Map.Entry<String, Set<String>> entry : detailFieldsMap.entrySet()) {
+                String detailTableAttachmentSql = StrUtil.format("select {} from {} where mainid = {}", String.join(StrUtil.COMMA, entry.getValue()), entry.getKey(), mainId);
+                UTILS.writeLog("detailTableAttachmentSql : " + detailTableAttachmentSql);
+                rs.executeQuery(detailTableAttachmentSql);
+                while (rs.next()) {
+                    entry.getValue().stream()
+                            .map(rs::getString)
+                            .filter(StrUtil::isNotBlank)
+                            .forEach(docIds -> attachmentIds.addAll(Arrays.stream(docIds.split(StrUtil.COMMA))
+                                    .map(Integer::parseInt)
+                                    .collect(Collectors.toList())));
+                }
+
+            }
+        }
+        return attachmentIds;
+    }
 }
