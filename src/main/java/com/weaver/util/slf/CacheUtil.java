@@ -4,7 +4,6 @@ import com.cloudstore.dev.api.util.Util_DataCache;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -25,7 +24,7 @@ public class CacheUtil {
     public static void set(String key, Object value) {
         String cacheKey = CACHE_PREFIX + key;
         Util_DataCache.setObjVal(cacheKey, value);
-        KEYS.add(cacheKey);
+        KEYS.add(key);
     }
 
     /**
@@ -37,9 +36,7 @@ public class CacheUtil {
      */
     public static void set(String key, Object value, int timeout, ChronoUnit unit) {
         set(key, value);
-        String timeoutKey = CACHE_PREFIX + key + TIMEOUT_SUFFIX;
-        Util_DataCache.setObjVal(timeoutKey, LocalDateTime.now().plus(timeout, unit));
-        KEYS.add(timeoutKey);
+        Util_DataCache.setObjVal(CACHE_PREFIX + key + TIMEOUT_SUFFIX, LocalDateTime.now().plus(timeout, unit));
     }
 
     /**
@@ -56,14 +53,14 @@ public class CacheUtil {
                 if (LocalDateTime.now().isBefore(timeout)) {
                     return true;
                 } else {
-                    Util_DataCache.clearVal(cacheKey);
-                    Util_DataCache.clearVal(timeoutKey);
+                    clear(key);
                     return false;
                 }
             } else {
                 return true;
             }
         } else {
+            clear(key);
             return false;
         }
     }
@@ -98,9 +95,8 @@ public class CacheUtil {
      */
     public static void clear(String key) {
         String cacheKey = CACHE_PREFIX + key;
-        String timeoutKey = cacheKey + TIMEOUT_SUFFIX;
         Util_DataCache.clearVal(cacheKey);
-        Util_DataCache.clearVal(timeoutKey);
+        Util_DataCache.clearVal(cacheKey + TIMEOUT_SUFFIX);
         KEYS.remove(key);
     }
 
@@ -108,41 +104,21 @@ public class CacheUtil {
      * 清除超时缓存
      */
     public static void clearTimeout() {
-        Set<String> removeSet = new HashSet<>();
-        for (String key : KEYS) {
-            if (!contains(key)) {
-                removeSet.add(key);
-            }
-        }
-        KEYS.removeAll(removeSet);
+        KEYS.forEach(CacheUtil::contains);
     }
     /**
      * 清除指定后缀的缓存
      * @param suffix suffix
      */
     public static void clearContainSuffix(String suffix) {
-        Set<String> removeSet = new HashSet<>();
-        for (String key : KEYS) {
-            if (key.endsWith(suffix)) {
-                clear(key);
-                removeSet.add(key);
-            }
-        }
-        for (String key : removeSet) {
-            KEYS.remove(key);
-        }
+        KEYS.stream().filter(key -> key.endsWith(suffix))
+                .forEach(CacheUtil::clear);
     }
 
     /**
      * 清除所有缓存
      */
     public static void clearAll() {
-        for (String key : KEYS) {
-            String cacheKey = CACHE_PREFIX + key;
-            String timeoutKey = cacheKey + TIMEOUT_SUFFIX;
-            Util_DataCache.clearVal(cacheKey);
-            Util_DataCache.clearVal(timeoutKey);
-        }
-        KEYS.clear();
+        KEYS.forEach(CacheUtil::clear);
     }
 }
