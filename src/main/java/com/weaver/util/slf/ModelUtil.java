@@ -41,9 +41,31 @@ public class ModelUtil {
      * @param isUpdate 是否更新
      */
     public static void batchWriteData(SyncWriteDataConfig config, JSONArray data, boolean isUpdate) {
-        UTILS.writeLog("开始写入数据...");
+        batchWriteDataHandler(config, data, 1, isUpdate);
+    }
+    /**
+     * 批量写入数据到建模表
+     *
+     * @param config   配置
+     * @param data     被写入数据
+     * @param userId   创建者
+     * @param isUpdate 是否更新
+     */
+    public static void batchWriteData(SyncWriteDataConfig config, JSONArray data, int userId, boolean isUpdate) {
+        batchWriteDataHandler(config, data, userId, isUpdate);
+    }
+    /**
+     * 批量写入数据到建模表处理器
+     *
+     * @param config   配置
+     * @param data     被写入数据
+     * @param userId    创建者
+     * @param isUpdate 是否更新
+     */
+    private static void batchWriteDataHandler(SyncWriteDataConfig config, JSONArray data, int userId, boolean isUpdate) {
+        UTILS.writeLog(StrUtil.format("creator: {}, 开始写入数据...", userId));
         RecordSet rs = new RecordSet();
-        List<Object> modeStaticInfo = Arrays.asList(config.getFormModeId(), 1, 0,
+        List<Object> modeStaticInfo = Arrays.asList(config.getFormModeId(), userId, 0,
                 DatePattern.NORM_DATE_FORMAT.format(DateTime.now()),
                 DatePattern.NORM_TIME_FORMAT.format(DateTime.now()),
                 DatePattern.NORM_DATETIME_FORMAT.format(DateTime.now()));
@@ -74,7 +96,7 @@ public class ModelUtil {
             } else {
                 securityBatchInsert(insertSql, params, rs);
             }
-            buildUfAuthBatch(config, oldMaxId, rs);
+            buildUfAuthBatch(config, oldMaxId, userId, rs);
             if (isUpdate) {
                 UTILS.writeLog("更新数据" + updateCount + "条");
             } else {
@@ -339,7 +361,7 @@ public class ModelUtil {
      * @param oldMaxId 旧数据最大id
      * @param rs       RecordSet
      */
-    private static void buildUfAuthBatch(SyncWriteDataConfig config, int oldMaxId, RecordSet rs) {
+    private static void buildUfAuthBatch(SyncWriteDataConfig config, int oldMaxId, int userId, RecordSet rs) {
         if (ObjectUtil.isNull(config.getFormModeId())) {
             return;
         }
@@ -348,12 +370,12 @@ public class ModelUtil {
         rs.execute(StrUtil.format(QUERY_NEW_ID_SQL, config.getLocalTable(), oldMaxId));
         if (StrUtil.equals(DBConstant.DB_TYPE_ORACLE, rs.getDBType())) {
             while (rs.next()) {
-                moderightinfo.editModeDataShare(1, config.getFormModeId(), rs.getInt("id"));
+                moderightinfo.editModeDataShare(userId, config.getFormModeId(), rs.getInt("id"));
             }
         } else {
             Map<Integer, Integer> creatorMap = new HashMap<>(rs.getCounts());
             while (rs.next()) {
-                creatorMap.put(rs.getInt("id"), 1);
+                creatorMap.put(rs.getInt("id"), userId);
                 if (creatorMap.size() >= 500) {
                     moderightinfo.editModeDataShare(creatorMap, config.getFormModeId(), new ArrayList<>(creatorMap.keySet()));
                     creatorMap.clear();
