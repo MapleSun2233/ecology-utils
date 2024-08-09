@@ -41,8 +41,21 @@ public class ModelUtil {
      * @param isUpdate 是否更新
      */
     public static void batchWriteData(SyncWriteDataConfig config, JSONArray data, boolean isUpdate) {
-        batchWriteDataHandler(config, data, 1, isUpdate);
+        batchWriteDataHandler(config, data, 1, isUpdate, true);
     }
+
+    /**
+     * 批量写入数据到建模表
+     *
+     * @param config   配置
+     * @param data     被写入数据
+     * @param isUpdate 是否更新
+     * @param isInsert 数据存在是否插入
+     */
+    public static void batchWriteData(SyncWriteDataConfig config, JSONArray data, boolean isUpdate, boolean isInsert) {
+        batchWriteDataHandler(config, data, 1, isUpdate, isInsert);
+    }
+
     /**
      * 批量写入数据到建模表
      *
@@ -52,17 +65,31 @@ public class ModelUtil {
      * @param isUpdate 是否更新
      */
     public static void batchWriteData(SyncWriteDataConfig config, JSONArray data, int userId, boolean isUpdate) {
-        batchWriteDataHandler(config, data, userId, isUpdate);
+        batchWriteDataHandler(config, data, userId, isUpdate, true);
     }
+
+    /**
+     * 批量写入数据到建模表
+     *
+     * @param config   配置
+     * @param data     被写入数据
+     * @param userId   创建者
+     * @param isUpdate 是否更新
+     * @param isInsert 数据不存在是否插入
+     */
+    public static void batchWriteData(SyncWriteDataConfig config, JSONArray data, int userId, boolean isUpdate, boolean isInsert) {
+        batchWriteDataHandler(config, data, userId, isUpdate, isInsert);
+    }
+
     /**
      * 批量写入数据到建模表处理器
      *
      * @param config   配置
      * @param data     被写入数据
-     * @param userId    创建者
+     * @param userId   创建者
      * @param isUpdate 是否更新
      */
-    private static void batchWriteDataHandler(SyncWriteDataConfig config, JSONArray data, int userId, boolean isUpdate) {
+    private static void batchWriteDataHandler(SyncWriteDataConfig config, JSONArray data, int userId, boolean isUpdate, boolean isInsert) {
         UTILS.writeLog(StrUtil.format("creator: {}, 开始写入数据...", userId));
         RecordSet rs = new RecordSet();
         List<Object> modeStaticInfo = Arrays.asList(config.getFormModeId(), userId, 0,
@@ -85,8 +112,10 @@ public class ModelUtil {
                     } else {
                         skipCount++;
                     }
-                } else {
+                } else if (isInsert) {
                     params.add(buildInsertData(config, item, modeStaticInfo));
+                } else {
+                    skipCount++;
                 }
             }
             String dbType = rs.getDBType();
@@ -102,7 +131,7 @@ public class ModelUtil {
             } else {
                 UTILS.writeLog("跳过重复数据" + skipCount + "条");
             }
-            UTILS.writeLog("写入数据" + (data.size() - updateCount - skipCount) + "条，写入数据完成...");
+            UTILS.writeLog("写入数据" + params.size() + "条，写入数据完成...");
         } catch (Exception e) {
             e.printStackTrace();
             UTILS.writeLog("写入数据错误，异常消息:" + e.getMessage());
@@ -188,6 +217,7 @@ public class ModelUtil {
                 .doubleIndex(StrUtil.isBlank(config.get("doubleIndex")) ? Collections.emptyList() : Arrays.stream(config.get("doubleIndex").split(",")).filter(NumberUtil::isInteger).map(Integer::parseInt).collect(Collectors.toList()))
                 .build();
     }
+
     /**
      * 构建数据写入配置
      *
