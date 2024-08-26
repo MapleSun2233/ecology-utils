@@ -53,9 +53,8 @@ public class ConfigUtil {
     public static Map<String, String> readPropertiesConfigWithCache(String fileName) {
         String path = GCONST.getPropertyPath() + fileName + ".properties";
         if (CacheUtil.contains(path)) {
-            Map<String, String> config = CacheUtil.get(path, Map.class);
             UTILS.writeLog("file config read from cache");
-            return config;
+            return (Map<String, String>)CacheUtil.get(path, Map.class);
         } else {
             Map<String, String> config = readPropertiesConfig(fileName);
             CacheUtil.set(path, config, EXPIRE, ChronoUnit.MINUTES);
@@ -102,9 +101,8 @@ public class ConfigUtil {
     public static JSONObject readJsonConfigWithCache(String fileName) {
         String path = GCONST.getPropertyPath() + fileName + ".json";
         if (CacheUtil.contains(path)) {
-            JSONObject res = CacheUtil.get(path, JSONObject.class);
             UTILS.writeLog(fileName + " config read from cache");
-            return res;
+            return CacheUtil.get(path, JSONObject.class);
         } else {
             JSONObject res = readJsonConfig(fileName);
             CacheUtil.set(path, res, EXPIRE, ChronoUnit.MINUTES);
@@ -119,9 +117,8 @@ public class ConfigUtil {
     public static JSONArray readJsonArrConfigWithCache(String fileName) {
         String path = GCONST.getPropertyPath() + fileName + ".json";
         if (CacheUtil.contains(path)) {
-            JSONArray res = CacheUtil.get(path, JSONArray.class);
             UTILS.writeLog(fileName + " config read from cache");
-            return res;
+            return CacheUtil.get(path, JSONArray.class);
         } else {
             JSONArray res = readJsonArrConfig(fileName);
             CacheUtil.set(path, res, EXPIRE, ChronoUnit.MINUTES);
@@ -206,6 +203,10 @@ public class ConfigUtil {
      * @return properties
      */
     public static Map<String, String> readPropertiesConfigByServiceName(String serviceName) {
+        if (CacheUtil.contains(serviceName)) {
+            UTILS.writeLog(serviceName + " config read from cache");
+            return (Map<String, String>) CacheUtil.get(serviceName, Map.class);
+        }
         String configContent = readConfigContentFromTableByServiceName(serviceName);
         String[] contentArr = configContent.split(StrUtil.LF);
         Map<String, String> config = new HashMap<>(contentArr.length);
@@ -216,6 +217,7 @@ public class ConfigUtil {
                     int index = line.indexOf('=');
                     config.put(line.substring(0, index), line.substring(index+1));
                 });
+        CacheUtil.set(serviceName, config, EXPIRE, ChronoUnit.MINUTES);
         return config;
     }
 
@@ -225,7 +227,13 @@ public class ConfigUtil {
      * @return json配置
      */
     public static JSONObject readJsonConfigByServiceName(String serviceName) {
-        return JSONObject.parseObject(readConfigContentFromTableByServiceName(serviceName));
+        if (CacheUtil.contains(serviceName)) {
+            UTILS.writeLog(serviceName + " config read from cache");
+            return CacheUtil.get(serviceName, JSONObject.class);
+        }
+        JSONObject config = JSONObject.parseObject(readConfigContentFromTableByServiceName(serviceName));
+        CacheUtil.set(serviceName, config, EXPIRE, ChronoUnit.MINUTES);
+        return config;
     }
 
     /**
@@ -234,6 +242,12 @@ public class ConfigUtil {
      * @return  json数组
      */
     public static JSONArray readJsonArrByServiceName(String serviceName) {
-        return JSONArray.parseArray(readConfigContentFromTableByServiceName(serviceName));
+        if (CacheUtil.contains(serviceName)) {
+            UTILS.writeLog(serviceName + " config read from cache");
+            return CacheUtil.get(serviceName, JSONArray.class);
+        }
+        JSONArray config = JSONArray.parseArray(readConfigContentFromTableByServiceName(serviceName));
+        CacheUtil.set(serviceName, config, EXPIRE, ChronoUnit.MINUTES);
+        return config;
     }
 }
