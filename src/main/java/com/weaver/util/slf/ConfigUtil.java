@@ -207,8 +207,9 @@ public class ConfigUtil {
      */
     public static Map<String, String> readPropertiesConfigByServiceName(String serviceName) {
         String configContent = readConfigContentFromTableByServiceName(serviceName);
-        Map<String, String> config = new HashMap<>(10);
-        Arrays.stream(configContent.split(StrUtil.LF))
+        String[] contentArr = configContent.split(StrUtil.LF);
+        Map<String, String> config = new HashMap<>(contentArr.length);
+        Arrays.stream(contentArr)
                 .filter(StrUtil::isNotBlank)
                 .filter(line -> !StrUtil.startWithAny(line, "#", "=") && !StrUtil.endWith(line, "=") && StrUtil.contains(line, "="))
                 .forEach(line -> {
