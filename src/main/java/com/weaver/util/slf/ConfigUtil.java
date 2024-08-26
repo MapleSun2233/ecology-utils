@@ -1,6 +1,8 @@
 package com.weaver.util.slf;
 
+import cn.hutool.core.convert.Convert;
 import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
@@ -18,6 +20,7 @@ import java.util.*;
 public class ConfigUtil {
     private static final int EXPIRE = 3;
     private static final BaseBean UTILS = new BaseBean();
+    private static String normalConfigTable = "uf_kfffpzgl";
 
     /**
      * 读取配置
@@ -141,7 +144,7 @@ public class ConfigUtil {
             rs.execute(sql);
             Map<String, String> config = new HashMap<>(rs.getCounts());
             while (rs.next()) {
-                config.put(rs.getString(configNameField), rs.getString(configValueField));
+                config.put(Convert.toDBC(rs.getString(configNameField)), Convert.toDBC(rs.getString(configValueField)));
             }
             UTILS.writeLog(tableName + " ::: " + config);
             return config;
@@ -166,7 +169,7 @@ public class ConfigUtil {
             rs.execute(sql);
             Map<String, String> config = new HashMap<>(rs.getCounts());
             while (rs.next()) {
-                config.put(rs.getString(configNameField), rs.getString(configValueField));
+                config.put(Convert.toDBC(rs.getString(configNameField)), Convert.toDBC(rs.getString(configValueField)));
             }
             UTILS.writeLog(tableName + " ::: " + config);
             return config;
@@ -174,5 +177,62 @@ public class ConfigUtil {
             UTILS.writeLog("config read error :: " + e.getMessage());
             return Collections.emptyMap();
         }
+    }
+
+    /**
+     * 设置通用配置表
+     * @param tableName 新配置表名
+     */
+    public static void setNormalConfigTable(String tableName) {
+        normalConfigTable = tableName;
+    }
+
+    /**
+     * 根据服务名读取配置内容
+     * @param serviceName 服务名
+     * @return 配置内容
+     */
+    public static String readConfigContentFromTableByServiceName(String serviceName) {
+        String sql = StrUtil.format("select pznr from {} where fwm = '{}'", normalConfigTable, serviceName);
+        UTILS.writeLog("readConfigContentFromTableByServiceName: " + sql);
+        RecordSet rs = new RecordSet();
+        ValidatorUtil.validate(rs.executeQuery(sql) && rs.next(), BooleanUtil::isFalse, "根据服务名获取配置失败： " + serviceName);
+        return Convert.toDBC(rs.getString("pznr"));
+    }
+
+    /**
+     * 根据服务名读取properties配置
+     * @param serviceName 服务名
+     * @return properties
+     */
+    public static Map<String, String> readPropertiesConfigByServiceName(String serviceName) {
+        String configContent = readConfigContentFromTableByServiceName(serviceName);
+        Map<String, String> config = new HashMap<>(10);
+        Arrays.stream(configContent.split(StrUtil.LF))
+                .filter(StrUtil::isNotBlank)
+                .filter(line -> !StrUtil.startWithAny(line, "#", "=") && !StrUtil.endWith(line, "=") && StrUtil.contains(line, "="))
+                .forEach(line -> {
+                    int index = line.indexOf('=');
+                    config.put(line.substring(0, index), line.substring(index+1));
+                });
+        return config;
+    }
+
+    /**
+     * 根据服务名读取json配置
+     * @param serviceName 服务名
+     * @return json配置
+     */
+    public static JSONObject readJsonConfigByServiceName(String serviceName) {
+        return JSONObject.parseObject(readConfigContentFromTableByServiceName(serviceName));
+    }
+
+    /**
+     * 根据服务名读取json数组配置
+     * @param serviceName 服务名
+     * @return  json数组
+     */
+    public static JSONArray readJsonArrByServiceName(String serviceName) {
+        return JSONArray.parseArray(readConfigContentFromTableByServiceName(serviceName));
     }
 }
