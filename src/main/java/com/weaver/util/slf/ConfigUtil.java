@@ -207,7 +207,7 @@ public class ConfigUtil {
             UTILS.writeLog(serviceName + " config read from cache");
             return (Map<String, String>) CacheUtil.get(serviceName, Map.class);
         }
-        String configContent = readConfigContentFromTableByServiceName(serviceName);
+        String configContent = readConfigContentFromTableByServiceName(serviceName).trim();
         String[] contentArr = configContent.split(StrUtil.LF);
         Map<String, String> config = new HashMap<>(contentArr.length);
         Arrays.stream(contentArr)
@@ -215,7 +215,7 @@ public class ConfigUtil {
                 .filter(line -> !StrUtil.startWithAny(line, "#", "=") && !StrUtil.endWith(line, "=") && StrUtil.contains(line, "="))
                 .forEach(line -> {
                     int index = line.indexOf('=');
-                    config.put(line.substring(0, index), line.substring(index+1));
+                    config.put(line.substring(0, index).trim(), line.substring(index+1).trim());
                 });
         CacheUtil.set(serviceName, config, EXPIRE, ChronoUnit.MINUTES);
         return config;
