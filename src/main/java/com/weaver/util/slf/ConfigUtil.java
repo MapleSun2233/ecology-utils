@@ -194,7 +194,7 @@ public class ConfigUtil {
         UTILS.writeLog("readConfigContentFromTableByServiceName: " + sql);
         RecordSet rs = new RecordSet();
         ValidatorUtil.validate(rs.executeQuery(sql) && rs.next(), BooleanUtil::isFalse, "根据服务名获取配置失败： " + serviceName);
-        return Convert.toDBC(rs.getString("pznr"));
+        return Convert.toDBC(rs.getString("pznr")).replaceAll("&quot;", StrUtil.EMPTY).trim();
     }
 
     /**
@@ -207,7 +207,7 @@ public class ConfigUtil {
             UTILS.writeLog(serviceName + " config read from cache");
             return (Map<String, String>) CacheUtil.get(serviceName, Map.class);
         }
-        String configContent = readConfigContentFromTableByServiceName(serviceName).trim();
+        String configContent = readConfigContentFromTableByServiceName(serviceName);
         String[] contentArr = configContent.split(StrUtil.LF);
         Map<String, String> config = new HashMap<>(contentArr.length);
         Arrays.stream(contentArr)
