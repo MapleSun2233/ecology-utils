@@ -16,7 +16,7 @@ import java.util.Arrays;
  */
 public class SqlUtil {
     private static final BaseBean UTILS = new BaseBean();
-    private static final String[] SENSITIVE_WORDS = {"delete", "update", "into", ";", "drop"};
+    private static final String[] SENSITIVE_WORDS = {";", " delete ", " update ", " into ", " drop ", " alter ", " union ", " join "};
     /**
      * 执行任意sql结果转jsonArr
      * @param sql sql
