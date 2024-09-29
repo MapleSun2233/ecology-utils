@@ -28,7 +28,7 @@ public class SqlUtil {
                 .append(sql.toLowerCase(), s -> Arrays.stream(SENSITIVE_WORDS).anyMatch(s::contains), "安全检查未通过，请勿包含敏感词！")
                 .validate();
         RecordSet rs = new RecordSet();
-        if (!rs.execute(sql)) {
+        if (!rs.executeQuery(sql)) {
             UTILS.writeLog("SQL执行出错 :: " + sql);
             throw new RuntimeException("SQL执行出错，请检查SQL配置");
         }

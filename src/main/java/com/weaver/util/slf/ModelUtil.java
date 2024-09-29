@@ -385,6 +385,18 @@ public class ModelUtil {
     }
 
     /**
+     * 赋权
+     * @param modeId
+     * @param userId
+     * @param dataId
+     */
+    public static void buildUfAuth(int modeId, int userId, int dataId) {
+        ModeRightInfo moderightinfo = new ModeRightInfo();
+        moderightinfo.setNewRight(true);
+        moderightinfo.editModeDataShare(userId, modeId, dataId);
+    }
+
+    /**
      * 批量赋权
      *
      * @param config   配置
