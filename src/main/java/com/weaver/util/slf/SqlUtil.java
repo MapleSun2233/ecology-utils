@@ -25,7 +25,7 @@ public class SqlUtil {
     public static JSONArray executeAndToJson(String sql) {
         ValidatorUtil.builder()
                 .append(sql.toLowerCase(), s -> !s.startsWith("select"), "sql配置错误，该方式禁止用于修改数据！")
-                .append(sql.toLowerCase(), s -> Arrays.stream(SENSITIVE_WORDS).anyMatch(s::contains), "安全检查未通过，请勿包含敏感词！")
+                .append(sql.toLowerCase(), s -> Arrays.stream(SENSITIVE_WORDS).anyMatch(s::contains), "疑似SQL注入攻击，已拦截！")
                 .validate();
         RecordSet rs = new RecordSet();
         if (!rs.executeQuery(sql)) {
