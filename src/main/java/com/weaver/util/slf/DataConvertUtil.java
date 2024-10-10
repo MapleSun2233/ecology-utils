@@ -1,7 +1,9 @@
 package com.weaver.util.slf;
 
 import cn.hutool.core.util.NumberUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson.JSONObject;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -105,6 +107,21 @@ public class DataConvertUtil {
         Matcher matcher = pattern.matcher(templateStr);
         while (matcher.find()) {
             templateStr = templateStr.replaceAll(convertPlaceHolder(matcher.group(0)), data.getOrDefault(matcher.group(1), StrUtil.EMPTY));
+        }
+        return templateStr;
+    }
+    /**
+     * 处理占位符并注入数据
+     * @param templateStr 模板字符串
+     * @param data data
+     * @return handledStr
+     */
+    public static String handlePlaceHolderAndInjectData(String templateStr, JSONObject data) {
+        Pattern pattern = Pattern.compile(PLACE_HOLDER_PATTERN);
+        Matcher matcher = pattern.matcher(templateStr);
+        while (matcher.find()) {
+            String value = ObjectUtil.isNull(data.getString(matcher.group(1))) ? StrUtil.EMPTY : data.getString(matcher.group(1));
+            templateStr = templateStr.replaceAll(convertPlaceHolder(matcher.group(0)), value);
         }
         return templateStr;
     }
