@@ -4,6 +4,9 @@ import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
 
 import java.math.BigDecimal;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author slf
@@ -12,6 +15,7 @@ import java.math.BigDecimal;
  */
 public class DataConvertUtil {
     public static String ZERO = "0";
+    public static String PLACE_HOLDER_PATTERN = "\\$\\{(\\w+)\\}";
 
     /**
      * 非法字符串返回0字符串，用于合法化数值类型入参
@@ -88,5 +92,29 @@ public class DataConvertUtil {
         } else {
             return 0f;
         }
+    }
+
+    /**
+     * 处理占位符并注入数据
+     * @param templateStr 模板字符串
+     * @param data data
+     * @return handledStr
+     */
+    public static String handlePlaceHolderAndInjectData(String templateStr, Map<String, String> data) {
+        Pattern pattern = Pattern.compile(PLACE_HOLDER_PATTERN);
+        Matcher matcher = pattern.matcher(templateStr);
+        while (matcher.find()) {
+            templateStr = templateStr.replaceAll(convertPlaceHolder(matcher.group(0)), data.getOrDefault(matcher.group(1), StrUtil.EMPTY));
+        }
+        return templateStr;
+    }
+
+    /**
+     * 转义展位符
+     * @param placeHolder
+     * @return
+     */
+    public static String convertPlaceHolder(String placeHolder) {
+        return placeHolder.replace("$", "\\$").replace("{", "\\{").replace("}", "\\}");
     }
 }
