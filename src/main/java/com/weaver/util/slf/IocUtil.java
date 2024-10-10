@@ -17,6 +17,15 @@ import java.util.Map;
 public class IocUtil {
     private final static Map<Class, Object> OBJ_HOLDER = new HashMap<>();
     private final static BaseBean LOG = new BaseBean();
+
+    /**
+     * 取对象，不建议使用该工具，建议使用hutool提供的Singleton.get方法，更稳定
+     * @param clazz
+     * @param params
+     * @param <T>
+     * @return
+     */
+    @Deprecated
     public static <T> T getObj(Class<T> clazz, Object... params) {
         // 是null直接返回null
         if (ObjectUtil.isNull(clazz)) {
