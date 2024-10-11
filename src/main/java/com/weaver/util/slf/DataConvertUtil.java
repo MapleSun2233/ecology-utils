@@ -8,6 +8,8 @@ import com.alibaba.fastjson.JSONObject;
 import weaver.conn.RecordSet;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -147,9 +149,22 @@ public class DataConvertUtil {
      */
     public static String convertDataByStrategySql(Map<String, String> dataConvertStrategy, String data, String strategyName) {
         ValidatorUtil.validate(dataConvertStrategy.containsKey(strategyName), BooleanUtil::isFalse, StrUtil.format("未找到数据转换策略{}， 请联系管理员添加数据转换策略", strategyName));
+        if (StrUtil.isBlank(data)) {
+            return null;
+        }
         RecordSet rs = new RecordSet();
-        if (rs.executeQuery(dataConvertStrategy.get(strategyName), data) && rs.next()) {
-            return rs.getString(1);
+        List<String> idList = new ArrayList<>();
+        if (strategyName.endsWith("_multiple")) {
+            for (String param : data.split(StrUtil.COMMA)) {
+                if (rs.executeQuery(dataConvertStrategy.get(strategyName), param) && rs.next()) {
+                    idList.add(rs.getString(1));
+                }
+            }
+            return idList.isEmpty() ? null : StrUtil.join(StrUtil.COMMA, idList);
+        } else {
+            if (rs.executeQuery(dataConvertStrategy.get(strategyName), data) && rs.next()) {
+                return rs.getString(1);
+            }
         }
         return null;
     }
