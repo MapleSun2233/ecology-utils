@@ -504,6 +504,7 @@ public class WorkflowUtil {
                         break;
                     case "fileBytes":
                         item.put("fieldValue", convertJsonFileList(fieldValue));
+                        break;
                     default:
                 }
             }
@@ -524,24 +525,8 @@ public class WorkflowUtil {
         for (int i = 0; i < fields.size(); i++) {
             JSONObject item = fields.getJSONObject(i);
             String fieldName = item.getString("fieldName");
-            String fieldValue = item.getString("fieldValue");
             if (convertFields.containsKey(fieldName)) {
-                switch (convertFields.getString(fieldName)) {
-                    case "employee":
-                        item.put("fieldValue", HrmUtil.convertWorkCodesToUserIds(fieldValue));
-                        break;
-                    case "department":
-                        item.put("fieldValue", HrmUtil.convertDepartmentCodesToDepartmentIds(fieldValue));
-                        break;
-                    case "company":
-                        item.put("fieldValue", HrmUtil.convertCompanyCodesToCompanyIds(fieldValue));
-                        break;
-                    case "fileBytes":
-                        item.put("fieldValue", convertJsonFileList(fieldValue));
-                    default:
-                        // 自定以转换规则
-                        item.put("fieldValue", DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, fieldValue, convertFields.getString(fieldName)));
-                }
+                item.put("fieldValue", DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, item.getString("fieldValue"), convertFields.getString(fieldName)));
             }
         }
     }
