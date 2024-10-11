@@ -556,6 +556,7 @@ public class WorkflowUtil {
             WorkflowDetailTableInfoEntity entity = new WorkflowDetailTableInfoEntity();
             entity.setTableDBName(tableName + "_" + detailTableData.getString("detailTableName"));
             entity.setWorkflowRequestTableRecords(buildLines(detailTableData.getJSONArray("lines"), convertFields, dataConvertStrategy));
+            entity.setDeleteAll(true);
             detailData.add(entity);
         }
         return detailData;
