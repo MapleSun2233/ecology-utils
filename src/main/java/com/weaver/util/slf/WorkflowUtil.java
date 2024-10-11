@@ -220,6 +220,53 @@ public class WorkflowUtil {
     }
 
     /**
+     * 更新并提交流程， 该用户必须具有流程创建权限
+     *
+     * @param submitEntity submitEntity
+     * @return PAResponseEntity result
+     */
+    public static int submitWorkflow(JSONObject submitEntity) {
+        WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
+        int requestId = submitEntity.getInteger("requestId");
+        String tableName = getTableNameByRequestId(requestId);
+        String userId = submitEntity.getString("operator");
+        boolean isWorkCode = Optional.ofNullable(submitEntity.getBoolean("operatorIsWorkCode")).orElse(false);
+        ValidatorUtil.builder()
+                .append(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败")
+                .append(submitEntity, ObjectUtil::isNull, "提交数据实体不能为空")
+                .append(tableName, StrUtil::isBlank, "流程数据表获取失败")
+                .validate();
+        User user = HrmUtil.getUserCompatibleWorkCode(userId, isWorkCode);
+        ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
+        entity.setRequestId(requestId);
+        entity.setUserId(user.getUID());
+        entity.setClientIp("0:0:0:0:0:0:0:1");
+        JSONObject mainData = submitEntity.getJSONObject("mainData");
+        if (ObjectUtil.isNotNull(mainData)) {
+            entity.setMainData(buildMainData(mainData));
+        }
+        JSONArray detailData = submitEntity.getJSONArray("detailData");
+        if (ObjectUtil.isNotNull(detailData)) {
+            entity.setDetailData(buildDetailData(detailData, tableName));
+        }
+        if (submitEntity.containsKey("isSubmit") && submitEntity.getBoolean("isSubmit")) {
+            String remark = submitEntity.getString("remark");
+            if (StrUtil.isNotBlank(remark)) {
+                entity.setRemark(remark.replaceAll("\"", "\\\"").replaceAll("'", "\\'").replaceAll("\\?", StrUtil.EMPTY));
+            }
+        } else {
+            entity.setOtherParams(MapUtil.builder(new HashMap<String, Object>()).put("src", "save").build());
+        }
+        UTILS.writeLog("submitWorkflowEntity ::: " + JSONObject.toJSONString(entity));
+        PAResponseEntity responseEntity = operatePa.submitRequest(user, entity);
+        UTILS.writeLog("responseEntity :: " + JSONObject.toJSONString(responseEntity));
+        if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
+            handleResponseEntityForFailure(responseEntity, "流程提交失败，请检查参数信息");
+        }
+        return requestId;
+    }
+
+    /**
      * 处理流程操作错误信息
      *
      * @param responseEntity 错误返回体
@@ -508,9 +555,10 @@ public class WorkflowUtil {
 
     /**
      * 获取数据mainId
+     *
      * @param requestId requestId
      * @param tableName tableName
-     * @param rs rs
+     * @param rs        rs
      * @return mainId
      */
     public static int getMainIdBaseRequestIdAndTableName(String requestId, String tableName, RecordSet rs) {
@@ -526,6 +574,7 @@ public class WorkflowUtil {
 
     /**
      * 获取数据mainId
+     *
      * @param requestId requestId
      * @param tableName tableName
      * @return mainId
@@ -575,6 +624,20 @@ public class WorkflowUtil {
     }
 
     /**
+     * 根据requestId获取数据表名
+     *
+     * @param requestId 流程id
+     * @return 表名
+     */
+    public static String getTableNameByRequestId(int requestId) {
+        RecordSet rs = new RecordSet();
+        if (rs.executeQuery("select c.tablename from workflow_requestbase a left join workflow_base b on a.workflowid = b.id left join workflow_bill c on b.formid = c.id where a.requestid = ?", requestId) && rs.next()) {
+            return rs.getString("tablename");
+        }
+        return StrUtil.EMPTY;
+    }
+
+    /**
      * 获取当前节点信息
      *
      * @param requestId 流程id
@@ -595,6 +658,7 @@ public class WorkflowUtil {
 
     /**
      * 获取流程中所有附件id
+     *
      * @param requestId requestId
      * @return 附件id列表
      */
