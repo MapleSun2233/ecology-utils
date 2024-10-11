@@ -509,6 +509,42 @@ public class WorkflowUtil {
             }
         }
     }
+
+    /**
+     * 处理字段转换，支持自定义数据转换策略
+     *
+     * @param fields        字段值
+     * @param convertFields 转换字段配置
+     * @param dataConvertStrategy 数据转换策略
+     */
+    public static void handleConvertFields(JSONArray fields, JSONObject convertFields, Map<String, String> dataConvertStrategy) {
+        if (ObjectUtil.isNull(convertFields)) {
+            return;
+        }
+        for (int i = 0; i < fields.size(); i++) {
+            JSONObject item = fields.getJSONObject(i);
+            String fieldName = item.getString("fieldName");
+            String fieldValue = item.getString("fieldValue");
+            if (convertFields.containsKey(fieldName)) {
+                switch (convertFields.getString(fieldName)) {
+                    case "employee":
+                        item.put("fieldValue", HrmUtil.convertWorkCodesToUserIds(fieldValue));
+                        break;
+                    case "department":
+                        item.put("fieldValue", HrmUtil.convertDepartmentCodesToDepartmentIds(fieldValue));
+                        break;
+                    case "company":
+                        item.put("fieldValue", HrmUtil.convertCompanyCodesToCompanyIds(fieldValue));
+                        break;
+                    case "fileBytes":
+                        item.put("fieldValue", convertJsonFileList(fieldValue));
+                    default:
+                        // 自定以转换规则
+                        item.put("fieldValue", DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, fieldValue, convertFields.getString(fieldName)));
+                }
+            }
+        }
+    }
     /**
      * 构建主表数据，支持自定义数据转换策略
      *
@@ -579,26 +615,6 @@ public class WorkflowUtil {
             fields[k] = itemField;
         }
         return fields;
-    }
-    /**
-     * 处理字段转换，支持自定义数据转换策略
-     *
-     * @param fields        字段值
-     * @param convertFields 转换字段配置
-     * @param dataConvertStrategy 数据转换策略
-     */
-    public static void handleConvertFields(JSONArray fields, JSONObject convertFields, Map<String, String> dataConvertStrategy) {
-        if (ObjectUtil.isNull(convertFields)) {
-            return;
-        }
-        for (int i = 0; i < fields.size(); i++) {
-            JSONObject item = fields.getJSONObject(i);
-            String fieldName = item.getString("fieldName");
-            if (convertFields.containsKey(fieldName)) {
-                String strategyName = convertFields.getString(fieldName);
-                item.put("fieldValue", DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, item.getString("fieldValue"), strategyName));
-            }
-        }
     }
 
     /**
