@@ -202,13 +202,14 @@ public class WorkflowUtil {
         if (ObjectUtil.isNotNull(detailData)) {
             entity.setDetailData(buildDetailData(detailData, tableName));
         }
-        if (createEntity.containsKey("isSubmit") && createEntity.getBoolean("isSubmit")) {
+        if (createEntity.containsKey("isSubmit") && !createEntity.getBoolean("isSubmit")) {
+            entity.setOtherParams(MapUtil.builder(new HashMap<String, Object>()).put("isnextflow", "0").build());
+        } else {
+            // 默认提交
             String remark = createEntity.getString("remark");
             if (StrUtil.isNotBlank(remark)) {
                 entity.setRemark(remark.replaceAll("\"", "\\\"").replaceAll("'", "\\'").replaceAll("\\?", StrUtil.EMPTY));
             }
-        } else {
-            entity.setOtherParams(MapUtil.builder(new HashMap<String, Object>()).put("isnextflow", "0").build());
         }
         UTILS.writeLog("createWorkflowEntity ::: " + JSONObject.toJSONString(entity));
         PAResponseEntity responseEntity = operatePa.doCreateRequest(user, entity);
