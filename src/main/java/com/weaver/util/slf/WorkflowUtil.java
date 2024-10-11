@@ -176,15 +176,15 @@ public class WorkflowUtil {
      * @return PAResponseEntity result
      */
     public static int createWorkflow(JSONObject createEntity) {
+        ValidatorUtil.validate(createEntity, ObjectUtil::isNull, "创建数据实体不能为空");
         WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
+        ValidatorUtil.validate(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败");
         int workflowId = createEntity.getInteger("workflowId");
         String tableName = getTableNameByWorkflowId(workflowId);
         String userId = createEntity.getString("creator");
         boolean isWorkCode = Optional.ofNullable(createEntity.getBoolean("creatorIsWorkCode")).orElse(false);
         String title = createEntity.getString("title");
         ValidatorUtil.builder()
-                .append(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败")
-                .append(createEntity, ObjectUtil::isNull, "创建数据实体不能为空")
                 .append(tableName, StrUtil::isBlank, "流程数据表获取失败")
                 .append(title, StrUtil::isBlank, "流程标题不能为空")
                 .validate();
@@ -202,14 +202,13 @@ public class WorkflowUtil {
         if (ObjectUtil.isNotNull(detailData)) {
             entity.setDetailData(buildDetailData(detailData, tableName));
         }
-        if (createEntity.containsKey("isSubmit") && !createEntity.getBoolean("isSubmit")) {
-            entity.setOtherParams(MapUtil.builder(new HashMap<String, Object>()).put("isnextflow", "0").build());
-        } else {
-            // 默认提交
+        if (createEntity.containsKey("isSubmit") && createEntity.getBoolean("isSubmit")) {
             String remark = createEntity.getString("remark");
             if (StrUtil.isNotBlank(remark)) {
                 entity.setRemark(remark.replaceAll("\"", "\\\"").replaceAll("'", "\\'").replaceAll("\\?", StrUtil.EMPTY));
             }
+        } else {
+            entity.setOtherParams(MapUtil.builder(new HashMap<String, Object>()).put("isnextflow", "0").build());
         }
         UTILS.writeLog("createWorkflowEntity ::: " + JSONObject.toJSONString(entity));
         PAResponseEntity responseEntity = operatePa.doCreateRequest(user, entity);
@@ -227,16 +226,14 @@ public class WorkflowUtil {
      * @return PAResponseEntity result
      */
     public static int submitWorkflow(JSONObject submitEntity) {
+        ValidatorUtil.validate(submitEntity, ObjectUtil::isNull, "提交数据实体不能为空");
         WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
+        ValidatorUtil.validate(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败");
         int requestId = submitEntity.getInteger("requestId");
         String tableName = getTableNameByRequestId(requestId);
         String userId = submitEntity.getString("operator");
         boolean isWorkCode = Optional.ofNullable(submitEntity.getBoolean("operatorIsWorkCode")).orElse(false);
-        ValidatorUtil.builder()
-                .append(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败")
-                .append(submitEntity, ObjectUtil::isNull, "提交数据实体不能为空")
-                .append(tableName, StrUtil::isBlank, "流程数据表获取失败")
-                .validate();
+        ValidatorUtil.validate(tableName, StrUtil::isBlank, "流程数据表获取失败");
         User user = HrmUtil.getUserCompatibleWorkCode(userId, isWorkCode);
         ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
         entity.setRequestId(requestId);
@@ -257,6 +254,113 @@ public class WorkflowUtil {
             }
         } else {
             entity.setOtherParams(MapUtil.builder(new HashMap<String, Object>()).put("src", "save").build());
+        }
+        UTILS.writeLog("submitWorkflowEntity ::: " + JSONObject.toJSONString(entity));
+        PAResponseEntity responseEntity = operatePa.submitRequest(user, entity);
+        UTILS.writeLog("responseEntity :: " + JSONObject.toJSONString(responseEntity));
+        if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
+            handleResponseEntityForFailure(responseEntity, "流程提交失败，请检查参数信息");
+        }
+        return requestId;
+    }
+    /**
+     * 创建流程， 该用户必须具有流程创建权限
+     *
+     * @param createEntity createEntity
+     * @param dataConvertStrategy 数据转换策略
+     * @return PAResponseEntity result
+     */
+    public static int createWorkflowV2(JSONObject createEntity, Map<String, String> dataConvertStrategy) {
+        ValidatorUtil.validate(createEntity, ObjectUtil::isNull, "创建数据实体不能为空");
+        WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
+        ValidatorUtil.validate(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败");
+        int workflowId = createEntity.getInteger("workflowId");
+        String tableName = getTableNameByWorkflowId(workflowId);
+        String userId = createEntity.getString("operator");
+        String userIdConvertStrategy = createEntity.getString("operatorConvertStrategy");
+        String title = createEntity.getString("title");
+        ValidatorUtil.builder()
+                .append(userId, StrUtil::isBlank, "操作者operator不能为空")
+                .append(userIdConvertStrategy, StrUtil::isBlank, "操作者数据转换策略operatorConvertStrategy不能为空")
+                .append(tableName, StrUtil::isBlank, "流程数据表获取失败")
+                .append(title, StrUtil::isBlank, "流程标题不能为空")
+                .validate();
+        userId = DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, userId, userIdConvertStrategy);
+        UTILS.writeLog("converted operatorId: " + userId);
+        User user = User.getUser(NumberUtil.parseInt(userId), 0);
+        ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
+        entity.setWorkflowId(workflowId);
+        entity.setRequestName(title);
+        entity.setUserId(user.getUID());
+        entity.setClientIp("0:0:0:0:0:0:0:1");
+        JSONObject mainData = createEntity.getJSONObject("mainData");
+        if (ObjectUtil.isNotNull(mainData)) {
+            entity.setMainData(buildMainData(mainData, dataConvertStrategy));
+        }
+        JSONArray detailData = createEntity.getJSONArray("detailData");
+        if (ObjectUtil.isNotNull(detailData)) {
+            entity.setDetailData(buildDetailData(detailData, tableName, dataConvertStrategy));
+        }
+        if (createEntity.containsKey("isSubmit") && !createEntity.getBoolean("isSubmit")) {
+            entity.setOtherParams(MapUtil.builder(new HashMap<String, Object>()).put("isnextflow", "0").build());
+        } else {
+            // 默认提交
+            String remark = createEntity.getString("remark");
+            if (StrUtil.isNotBlank(remark)) {
+                entity.setRemark(remark.replaceAll("\"", "\\\"").replaceAll("'", "\\'").replaceAll("\\?", StrUtil.EMPTY));
+            }
+        }
+        UTILS.writeLog("createWorkflowEntity ::: " + JSONObject.toJSONString(entity));
+        PAResponseEntity responseEntity = operatePa.doCreateRequest(user, entity);
+        UTILS.writeLog("responseEntity :: " + JSONObject.toJSONString(responseEntity));
+        if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
+            handleResponseEntityForFailure(responseEntity, "流程创建/提交失败，请检查参数信息");
+        }
+        return JSONObject.parseObject(JSONObject.toJSONString(responseEntity.getData())).getInteger("requestid");
+    }
+    /**
+     * 更新并提交流程， 该用户必须具有流程创建权限，支持自定义数据转换策略
+     *
+     * @param submitEntity submitEntity
+     * @param dataConvertStrategy 数据转换策略
+     * @return PAResponseEntity result
+     */
+    public static int submitWorkflowV2(JSONObject submitEntity, Map<String, String> dataConvertStrategy) {
+        ValidatorUtil.validate(submitEntity, ObjectUtil::isNull, "提交数据实体不能为空");
+        WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
+        ValidatorUtil.validate(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败");
+        int requestId = submitEntity.getIntValue("requestId");
+        String tableName = getTableNameByRequestId(requestId);
+        String userId = submitEntity.getString("operator");
+        String userIdConvertStrategy = submitEntity.getString("operatorConvertStrategy");
+        ValidatorUtil.builder()
+                .append(tableName, StrUtil::isBlank, "流程数据表获取失败")
+                .append(userId, StrUtil::isBlank, "操作者operator不能为空")
+                .append(userIdConvertStrategy, StrUtil::isBlank, "操作者数据转换策略operatorConvertStrategy不能为空")
+                .validate();
+        userId = DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, userId, userIdConvertStrategy);
+        UTILS.writeLog("converted operatorId: " + userId);
+        User user = User.getUser(NumberUtil.parseInt(userId), 0);
+        ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
+        entity.setRequestId(requestId);
+        entity.setUserId(user.getUID());
+        entity.setClientIp("0:0:0:0:0:0:0:1");
+        JSONObject mainData = submitEntity.getJSONObject("mainData");
+        if (ObjectUtil.isNotNull(mainData)) {
+            entity.setMainData(buildMainData(mainData, dataConvertStrategy));
+        }
+        JSONArray detailData = submitEntity.getJSONArray("detailData");
+        if (ObjectUtil.isNotNull(detailData)) {
+            entity.setDetailData(buildDetailData(detailData, tableName, dataConvertStrategy));
+        }
+        if (submitEntity.containsKey("isSubmit") && !submitEntity.getBoolean("isSubmit")) {
+            entity.setOtherParams(MapUtil.builder(new HashMap<String, Object>()).put("src", "save").build());
+        } else {
+            // 默认提交
+            String remark = submitEntity.getString("remark");
+            if (StrUtil.isNotBlank(remark)) {
+                entity.setRemark(remark.replaceAll("\"", "\\\"").replaceAll("'", "\\'").replaceAll("\\?", StrUtil.EMPTY));
+            }
         }
         UTILS.writeLog("submitWorkflowEntity ::: " + JSONObject.toJSONString(entity));
         PAResponseEntity responseEntity = operatePa.submitRequest(user, entity);
@@ -402,6 +506,97 @@ public class WorkflowUtil {
                         item.put("fieldValue", convertJsonFileList(fieldValue));
                     default:
                 }
+            }
+        }
+    }
+    /**
+     * 构建主表数据，支持自定义数据转换策略
+     *
+     * @param mainData 主表数据
+     * @param dataConvertStrategy 数据转换策略
+     * @return main
+     */
+    public static List<WorkflowRequestTableField> buildMainData(JSONObject mainData, Map<String, String> dataConvertStrategy) {
+        return Arrays.asList(buildFields(mainData.getJSONArray("fields"), mainData.getJSONObject("convertFields"), dataConvertStrategy));
+    }
+    /**
+     * 构建明细表，支持自定义数据转换策略
+     *
+     * @param detailsData 明细表数据
+     * @param tableName   主数据表名
+     * @return tables
+     */
+    public static List<WorkflowDetailTableInfoEntity> buildDetailData(JSONArray detailsData, String tableName, Map<String, String> dataConvertStrategy) {
+        List<WorkflowDetailTableInfoEntity> detailData = new ArrayList<>(detailsData.size());
+        for (int i = 0; i < detailsData.size(); i++) {
+            JSONObject detailTableData = detailsData.getJSONObject(i);
+            ValidatorUtil.validate(detailTableData.getString("detailTableName"), StrUtil::isBlank, "明细表名不能为空");
+            JSONObject convertFields = detailTableData.getJSONObject("convertFields");
+            WorkflowDetailTableInfoEntity entity = new WorkflowDetailTableInfoEntity();
+            entity.setTableDBName(tableName + "_" + detailTableData.getString("detailTableName"));
+            entity.setWorkflowRequestTableRecords(buildLines(detailTableData.getJSONArray("lines"), convertFields, dataConvertStrategy));
+            detailData.add(entity);
+        }
+        return detailData;
+    }
+    /**
+     * 构建明细行，支持自定义数据转换
+     *
+     * @param linesData     行数据
+     * @param convertFields 转换字段
+     * @param dataConvertStrategy 数据转换策略
+     * @return lines
+     */
+    private static WorkflowRequestTableRecord[] buildLines(JSONArray linesData, JSONObject convertFields, Map<String, String> dataConvertStrategy) {
+        int linesLength = linesData.size();
+        WorkflowRequestTableRecord[] workflowRequestTableRecords = new WorkflowRequestTableRecord[linesLength];
+        for (int j = 0; j < linesLength; j++) {
+            JSONArray fieldsData = linesData.getJSONArray(j);
+            WorkflowRequestTableRecord requestTableRecord = new WorkflowRequestTableRecord();
+            requestTableRecord.setRecordOrder(0);
+            requestTableRecord.setWorkflowRequestTableFields(buildFields(fieldsData, convertFields, dataConvertStrategy));
+            workflowRequestTableRecords[j] = requestTableRecord;
+        }
+        return workflowRequestTableRecords;
+    }
+    /**
+     * 构建字段，支持自定义数据转换
+     *
+     * @param fieldsData    字段数据
+     * @param convertFields 转换字段
+     * @param dataConvertStrategy 数据转换策略
+     * @return fields
+     */
+    private static WorkflowRequestTableField[] buildFields(JSONArray fieldsData, JSONObject convertFields, Map<String, String> dataConvertStrategy) {
+        handleConvertFields(fieldsData, convertFields, dataConvertStrategy);
+        int fieldsLength = fieldsData.size();
+        WorkflowRequestTableField[] fields = new WorkflowRequestTableField[fieldsLength];
+        for (int k = 0; k < fieldsLength; k++) {
+            JSONObject item = fieldsData.getJSONObject(k);
+            WorkflowRequestTableField itemField = new WorkflowRequestTableField();
+            itemField.setFieldName(item.getString("fieldName"));
+            itemField.setFieldValue(item.getString("fieldValue"));
+            fields[k] = itemField;
+        }
+        return fields;
+    }
+    /**
+     * 处理字段转换，支持自定义数据转换策略
+     *
+     * @param fields        字段值
+     * @param convertFields 转换字段配置
+     * @param dataConvertStrategy 数据转换策略
+     */
+    public static void handleConvertFields(JSONArray fields, JSONObject convertFields, Map<String, String> dataConvertStrategy) {
+        if (ObjectUtil.isNull(convertFields)) {
+            return;
+        }
+        for (int i = 0; i < fields.size(); i++) {
+            JSONObject item = fields.getJSONObject(i);
+            String fieldName = item.getString("fieldName");
+            if (convertFields.containsKey(fieldName)) {
+                String strategyName = convertFields.getString(fieldName);
+                item.put("fieldValue", DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, item.getString("fieldValue"), strategyName));
             }
         }
     }

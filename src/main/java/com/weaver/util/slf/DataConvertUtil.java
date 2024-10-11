@@ -1,9 +1,11 @@
 package com.weaver.util.slf;
 
+import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONObject;
+import weaver.conn.RecordSet;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -133,5 +135,22 @@ public class DataConvertUtil {
      */
     public static String convertPlaceHolder(String placeHolder) {
         return placeHolder.replace("$", "\\$").replace("{", "\\{").replace("}", "\\}");
+    }
+
+    /**
+     * 根据策略sql转换数据
+     *
+     * @param dataConvertStrategy 数据转换策略集合
+     * @param data data 原值
+     * @param strategyName 策略名称
+     * @return 结果值
+     */
+    public static String convertDataByStrategySql(Map<String, String> dataConvertStrategy, String data, String strategyName) {
+        ValidatorUtil.validate(dataConvertStrategy.containsKey(strategyName), BooleanUtil::isFalse, StrUtil.format("未找到数据转换策略{}， 请联系管理员添加数据转换策略", strategyName));
+        RecordSet rs = new RecordSet();
+        if (rs.executeQuery(dataConvertStrategy.get(strategyName), data) && rs.next()) {
+            return rs.getString(1);
+        }
+        return null;
     }
 }
