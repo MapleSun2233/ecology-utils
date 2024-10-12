@@ -148,20 +148,23 @@ public class DataConvertUtil {
      * @return 结果值
      */
     public static String convertDataByStrategySql(Map<String, String> dataConvertStrategy, String data, String strategyName) {
-        ValidatorUtil.validate(dataConvertStrategy.containsKey(strategyName), BooleanUtil::isFalse, StrUtil.format("未找到数据转换策略{}， 请联系管理员添加数据转换策略", strategyName));
+        ValidatorUtil.validate(strategyName, StrUtil::isBlank, "被指定的数据转换策略名不能为空");
         if (StrUtil.isBlank(data)) {
             return null;
         }
         RecordSet rs = new RecordSet();
         List<String> idList = new ArrayList<>();
         if (strategyName.endsWith("_multiple")) {
+            String finalStrategyName = strategyName.substring(0, strategyName.length() - 9);
+            ValidatorUtil.validate(dataConvertStrategy.containsKey(finalStrategyName), BooleanUtil::isFalse, StrUtil.format("未找到数据转换策略{}， 请联系管理员添加数据转换策略", finalStrategyName));
             for (String param : data.split(StrUtil.COMMA)) {
-                if (rs.executeQuery(dataConvertStrategy.get(strategyName), param) && rs.next()) {
+                if (rs.executeQuery(dataConvertStrategy.get(finalStrategyName), param) && rs.next()) {
                     idList.add(rs.getString(1));
                 }
             }
             return idList.isEmpty() ? null : StrUtil.join(StrUtil.COMMA, idList);
         } else {
+            ValidatorUtil.validate(dataConvertStrategy.containsKey(strategyName), BooleanUtil::isFalse, StrUtil.format("未找到数据转换策略{}， 请联系管理员添加数据转换策略", strategyName));
             if (rs.executeQuery(dataConvertStrategy.get(strategyName), data) && rs.next()) {
                 return rs.getString(1);
             }
