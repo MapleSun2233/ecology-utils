@@ -816,7 +816,7 @@ public class WorkflowUtil {
     public static String getTableNameByWorkflowId(int workflowId) {
         RecordSet rs = new RecordSet();
         if (rs.executeQuery("select tablename from workflow_base a left join workflow_bill b on a.formid = b.id where a.id = ?", workflowId) && rs.next()) {
-            return rs.getString("tablename");
+            return rs.getString(1);
         }
         return StrUtil.EMPTY;
     }
@@ -830,7 +830,7 @@ public class WorkflowUtil {
     public static String getTableNameByRequestId(int requestId) {
         RecordSet rs = new RecordSet();
         if (rs.executeQuery("select c.tablename from workflow_requestbase a left join workflow_base b on a.workflowid = b.id left join workflow_bill c on b.formid = c.id where a.requestid = ?", requestId) && rs.next()) {
-            return rs.getString("tablename");
+            return rs.getString(1);
         }
         return StrUtil.EMPTY;
     }
