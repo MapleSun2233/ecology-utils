@@ -281,11 +281,12 @@ public class WorkflowUtil {
         String title = createEntity.getString("title");
         ValidatorUtil.builder()
                 .append(userId, StrUtil::isBlank, "操作者operator不能为空")
-                .append(userIdConvertStrategy, StrUtil::isBlank, "操作者数据转换策略operatorConvertStrategy不能为空")
                 .append(tableName, StrUtil::isBlank, "流程数据表获取失败")
                 .append(title, StrUtil::isBlank, "流程标题不能为空")
                 .validate();
-        userId = DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, userId, userIdConvertStrategy);
+        if (StrUtil.isNotBlank(userIdConvertStrategy)) {
+            userId = DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, userId, userIdConvertStrategy);
+        }
         UTILS.writeLog("converted operatorId: " + userId);
         User user = User.getUser(NumberUtil.parseInt(userId), 0);
         ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
@@ -336,9 +337,10 @@ public class WorkflowUtil {
         ValidatorUtil.builder()
                 .append(tableName, StrUtil::isBlank, "流程数据表获取失败")
                 .append(userId, StrUtil::isBlank, "操作者operator不能为空")
-                .append(userIdConvertStrategy, StrUtil::isBlank, "操作者数据转换策略operatorConvertStrategy不能为空")
                 .validate();
-        userId = DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, userId, userIdConvertStrategy);
+        if (StrUtil.isNotBlank(userIdConvertStrategy)) {
+            userId = DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, userId, userIdConvertStrategy);
+        }
         UTILS.writeLog("converted operatorId: " + userId);
         User user = User.getUser(NumberUtil.parseInt(userId), 0);
         ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
