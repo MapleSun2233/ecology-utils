@@ -157,16 +157,32 @@ public class DataConvertUtil {
         if (strategyName.endsWith("_multiple")) {
             String finalStrategyName = strategyName.substring(0, strategyName.length() - 9);
             ValidatorUtil.validate(dataConvertStrategy.containsKey(finalStrategyName), BooleanUtil::isFalse, StrUtil.format("未找到数据转换策略{}， 请联系管理员添加数据转换策略", finalStrategyName));
-            for (String param : data.split(StrUtil.COMMA)) {
-                if (rs.executeQuery(dataConvertStrategy.get(finalStrategyName), param) && rs.next()) {
-                    idList.add(rs.getString(1));
+            String convertSql = dataConvertStrategy.get(finalStrategyName);
+            if (convertSql.contains("{}")) {
+                for (String param : data.split(StrUtil.COMMA)) {
+                    if (rs.executeQuery(StrUtil.format(convertSql, param)) && rs.next()) {
+                        idList.add(rs.getString(1));
+                    }
+                }
+            } else {
+                for (String param : data.split(StrUtil.COMMA)) {
+                    if (rs.executeQuery(convertSql, param) && rs.next()) {
+                        idList.add(rs.getString(1));
+                    }
                 }
             }
             return idList.isEmpty() ? null : StrUtil.join(StrUtil.COMMA, idList);
         } else {
             ValidatorUtil.validate(dataConvertStrategy.containsKey(strategyName), BooleanUtil::isFalse, StrUtil.format("未找到数据转换策略{}， 请联系管理员添加数据转换策略", strategyName));
-            if (rs.executeQuery(dataConvertStrategy.get(strategyName), data) && rs.next()) {
-                return rs.getString(1);
+            String convertSql = dataConvertStrategy.get(strategyName);
+            if (convertSql.contains("{}")) {
+                if (rs.executeQuery(StrUtil.format(convertSql, data)) && rs.next()) {
+                    return rs.getString(1);
+                }
+            } else {
+                if (rs.executeQuery(convertSql, data) && rs.next()) {
+                    return rs.getString(1);
+                }
             }
         }
         return null;
