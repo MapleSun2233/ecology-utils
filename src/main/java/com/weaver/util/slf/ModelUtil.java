@@ -99,10 +99,12 @@ public class ModelUtil {
         try {
             // 构建插入sql
             String insertSql = buildInsertSql(config);
+            UTILS.writeLog("insertSql: " + insertSql);
             List<List> params = new ArrayList<>(data.size());
             int skipCount = 0;
             int updateCount = 0;
             int oldMaxId = getMaxId(config.getLocalTable(), rs);
+            UTILS.writeLog("oldMaxId: " + oldMaxId);
             for (int i = 0; i < data.size(); i++) {
                 JSONObject item = data.getJSONObject(i);
                 if (checkExists(config, item.getString(config.getRemoteOnlyCheckField()), rs)) {
@@ -118,6 +120,7 @@ public class ModelUtil {
                     skipCount++;
                 }
             }
+            UTILS.writeLog("params: " + params);
             String dbType = rs.getDBType();
             UTILS.writeLog("dbType ::: " + dbType);
             if (StrUtil.equals(DBConstant.DB_TYPE_ORACLE, dbType)) {
@@ -161,6 +164,7 @@ public class ModelUtil {
         }
         UTILS.writeLog("开始写入数据...");
         String insertSql = buildInsertDetailSql(config);
+        UTILS.writeLog("insertSql: " + insertSql);
         List<List> params = new ArrayList<>(data.size());
         try {
             int skipCount = 0;
@@ -178,6 +182,7 @@ public class ModelUtil {
                     params.add(buildInsertDetailData(config, item, mainId));
                 }
             }
+            UTILS.writeLog("params: " + params);
             String dbType = rs.getDBType();
             UTILS.writeLog("dbType ::: " + dbType);
             if (StrUtil.equals(DBConstant.DB_TYPE_ORACLE, dbType)) {
@@ -378,6 +383,7 @@ public class ModelUtil {
                 sqlUpdate.deleteCharAt(sqlUpdate.length() - 1);
             }
             sqlUpdate.append(StrUtil.format(" where {}='{}'", config.getLocalOnlyCheckField(), data.getString(config.getRemoteOnlyCheckField())));
+            UTILS.writeLog("updateSql:" + sqlUpdate);
             return sqlUpdate.toString();
         }
 
