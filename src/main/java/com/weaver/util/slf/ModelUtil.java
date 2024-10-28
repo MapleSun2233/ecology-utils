@@ -120,7 +120,6 @@ public class ModelUtil {
                     skipCount++;
                 }
             }
-            UTILS.writeLog("params: " + params);
             String dbType = rs.getDBType();
             UTILS.writeLog("dbType ::: " + dbType);
             if (StrUtil.equals(DBConstant.DB_TYPE_ORACLE, dbType)) {
@@ -182,7 +181,6 @@ public class ModelUtil {
                     params.add(buildInsertDetailData(config, item, mainId));
                 }
             }
-            UTILS.writeLog("params: " + params);
             String dbType = rs.getDBType();
             UTILS.writeLog("dbType ::: " + dbType);
             if (StrUtil.equals(DBConstant.DB_TYPE_ORACLE, dbType)) {
