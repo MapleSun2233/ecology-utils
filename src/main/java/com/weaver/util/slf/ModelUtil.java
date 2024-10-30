@@ -200,6 +200,36 @@ public class ModelUtil {
             UTILS.writeLog("写入数据错误，异常消息:" + e.getMessage());
         }
     }
+    /**
+     * 批量追加数据到建模表明细表，不支持Oracle数据库
+     *
+     * @param config   配置
+     * @param mainId   主表id
+     * @param data     被写入数据
+     */
+    public static void batchWriteDetailAppend(SyncWriteDataConfig config, String mainId, JSONArray data) {
+        RecordSet rs = new RecordSet();
+        UTILS.writeLog("开始写入数据...");
+        String insertSql = buildInsertDetailSql(config);
+        UTILS.writeLog("insertSql: " + insertSql);
+        List<List> params = new ArrayList<>(data.size());
+        try {
+            for (int i = 0; i < data.size(); i++) {
+                JSONObject item = data.getJSONObject(i);
+                params.add(buildInsertDetailData(config, item, mainId));
+            }
+            String dbType = rs.getDBType();
+            UTILS.writeLog("dbType ::: " + dbType);
+            if (StrUtil.equals(DBConstant.DB_TYPE_ORACLE, dbType)) {
+                singleInsert(insertSql, params, rs);
+            } else {
+                securityBatchInsert(insertSql, params, rs);
+            }
+            UTILS.writeLog("写入数据" + params.size() + "条，写入数据完成...");
+        } catch (Exception e) {
+            UTILS.writeLog("写入数据错误，异常消息:" + e.getMessage());
+        }
+    }
 
 
     /**
