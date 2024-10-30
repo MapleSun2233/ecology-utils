@@ -511,4 +511,21 @@ public class ModelUtil {
         ));
         return rs.next() && rs.getInt("count") > 0;
     }
+
+    /**
+     * 获取主数据id
+     * @param tableName
+     * @param onlyCheckField
+     * @param onlyCheckValue
+     * @return mainId
+     */
+    public static int getMainId(String tableName, String onlyCheckField, String onlyCheckValue) {
+        String querySql = StrUtil.format("select id from {} where {} = ?", tableName, onlyCheckField);
+        UTILS.writeLog(StrUtil.format("getMainIdSql: {} onlyCheckValue: {}", querySql, onlyCheckValue));
+        RecordSet rs = new RecordSet();
+        if (rs.executeQuery(querySql, onlyCheckValue) && rs.next()) {
+            return rs.getInt(1);
+        }
+        return -1;
+    }
 }
