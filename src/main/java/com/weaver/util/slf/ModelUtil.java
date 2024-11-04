@@ -90,6 +90,7 @@ public class ModelUtil {
      * @param isUpdate 是否更新
      */
     private static void batchWriteDataHandler(SyncWriteDataConfig config, JSONArray data, int userId, boolean isUpdate, boolean isInsert) {
+        UTILS.writeLog("SyncWriteDataConfig: " + config.toString());
         UTILS.writeLog(StrUtil.format("creator: {}, 开始写入数据...", userId));
         RecordSet rs = new RecordSet();
         List<Object> modeStaticInfo = Arrays.asList(config.getFormModeId(), userId, 0,
@@ -152,6 +153,7 @@ public class ModelUtil {
      * @param isSkip   是否跳过
      */
     public static void batchWriteDetail(SyncWriteDataConfig config, String mainId, JSONArray data, boolean isUpdate, boolean isSkip) {
+        UTILS.writeLog("SyncWriteDataConfig: " + config.toString());
         RecordSet rs = new RecordSet();
         if (isUpdate) {
             if (StrUtil.isBlank(config.getLocalOnlyCheckField()) || StrUtil.isBlank(config.getRemoteOnlyCheckField())) {
@@ -281,6 +283,8 @@ public class ModelUtil {
         for (List itemParams : params) {
             if (!rs.executeUpdate(insertSql, itemParams)) {
                 UTILS.writeLog("插入数据失败" + rs.getExceptionMsg());
+                UTILS.writeLog("insertSql: " + insertSql);
+                UTILS.writeLog("params json: " + JSONObject.toJSONString(itemParams));
             }
         }
     }
@@ -295,13 +299,19 @@ public class ModelUtil {
     public static void securityBatchInsert(String insertSql, List<List> params, RecordSet rs) {
         int batchCounts = params.size() / BATCH_NUM;
         for (int i = 0; i < batchCounts; i++) {
-            if (!rs.executeBatchSql(insertSql, params.subList(i * BATCH_NUM, i * BATCH_NUM + BATCH_NUM))) {
+            List<List> subParams = params.subList(i * BATCH_NUM, i * BATCH_NUM + BATCH_NUM);
+            if (!rs.executeBatchSql(insertSql, subParams)) {
                 UTILS.writeLog("批量插入数据失败" + rs.getExceptionMsg());
+                UTILS.writeLog("insertSql: " + insertSql);
+                UTILS.writeLog("params json: " + JSONObject.toJSONString(subParams));
             }
         }
         if (params.size() % BATCH_NUM != 0) {
-            if (!rs.executeBatchSql(insertSql, params.subList(batchCounts * BATCH_NUM, params.size()))) {
+            List<List> subParams = params.subList(batchCounts * BATCH_NUM, params.size());
+            if (!rs.executeBatchSql(insertSql, subParams)) {
                 UTILS.writeLog("批量插入数据失败" + rs.getExceptionMsg());
+                UTILS.writeLog("insertSql: " + insertSql);
+                UTILS.writeLog("params json: " + JSONObject.toJSONString(subParams));
             }
         }
     }
