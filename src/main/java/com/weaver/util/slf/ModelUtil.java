@@ -9,14 +9,13 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.weaver.util.slf.entity.SyncWriteDataConfig;
 import weaver.conn.RecordSet;
 import weaver.conn.constant.DBConstant;
 import weaver.formmode.setup.ModeRightInfo;
 import weaver.general.BaseBean;
-import com.weaver.util.slf.entity.SyncWriteDataConfig;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 
 /**
@@ -233,6 +232,25 @@ public class ModelUtil {
         }
     }
 
+    /**
+     * 获取浮点数字段集合
+     * @param tableName
+     * @return
+     */
+    public static Set<String> getDoubleFields(String tableName) {
+        RecordSet rs = new RecordSet();
+        Set<String> doubleFields = new HashSet<>();
+        if (tableName.matches("\\w+_dt\\d+$")) {
+            rs.executeQuery("select fieldname from workflow_billfield where fieldhtmltype = 1 and type = 3 and detailtable = ?", tableName);
+        } else {
+            rs.executeQuery("select b.fieldname from workflow_bill a left join workflow_billfield b on a.id = b.billid where b.fieldhtmltype = 1 and b.type = 3 and a.tablename = ?", tableName);
+        }
+        while (rs.next()) {
+            doubleFields.add(rs.getString(1));
+        }
+        return doubleFields;
+    }
+
 
     /**
      * 构建数据写入配置
@@ -249,7 +267,7 @@ public class ModelUtil {
                 .localOnlyCheckField(config.get("localOnlyCheckField"))
                 .remoteOnlyCheckField(config.get("remoteOnlyCheckField"))
                 .formModeId(NumberUtil.isInteger(config.get("formModeId")) ? Integer.parseInt(config.get("formModeId")) : null)
-                .doubleIndex(StrUtil.isBlank(config.get("doubleIndex")) ? Collections.emptyList() : Arrays.stream(config.get("doubleIndex").split(",")).filter(NumberUtil::isInteger).map(Integer::parseInt).collect(Collectors.toList()))
+                .doubleFields(getDoubleFields(config.get("localTable")))
                 .build();
     }
 
@@ -268,7 +286,7 @@ public class ModelUtil {
                 .localOnlyCheckField(config.getString("localOnlyCheckField"))
                 .remoteOnlyCheckField(config.getString("remoteOnlyCheckField"))
                 .formModeId(NumberUtil.isInteger(config.getString("formModeId")) ? Integer.parseInt(config.getString("formModeId")) : null)
-                .doubleIndex(StrUtil.isBlank(config.getString("doubleIndex")) ? Collections.emptyList() : Arrays.stream(config.getString("doubleIndex").split(",")).filter(NumberUtil::isInteger).map(Integer::parseInt).collect(Collectors.toList()))
+                .doubleFields(getDoubleFields(config.getString("localTable")))
                 .build();
     }
 
@@ -382,15 +400,23 @@ public class ModelUtil {
     private static void injectNormalFields(SyncWriteDataConfig config, JSONObject data, List<Object> itemParams) {
         for (int i = 0; i < config.getRemoteFields().length; i++) {
             String str = data.getString(config.getRemoteFields()[i]);
-            if (StrUtil.isBlank(str)) {
-                if (config.getDoubleIndex().contains(i)) {
-                    itemParams.add("0");
+            if (config.getDoubleFields().contains(config.getLocalFields()[i])) {
+                // 判断是否是浮点数字段
+                if (StrUtil.isBlank(str)) {
+                    // 是否为空
+                    itemParams.add(null);
+                } else if (NumberUtil.isNumber(str)) {
+                    // 是否为数字
+                    itemParams.add(str);
+                } else if (JsonUtil.isScientificNotation(str)) {
+                    // 是否为科学计数法
+                    itemParams.add(JsonUtil.convertScientificNotationToNormalString(str));
                 } else {
-                    itemParams.add(StrUtil.EMPTY);
+                    // 不是数字屏蔽掉
+                    itemParams.add(null);
                 }
-            } else if (JsonUtil.isScientificNotation(str)) {
-                itemParams.add(JsonUtil.convertScientificNotationToNormalString(str));
             } else {
+                // 其他数据正常处理
                 itemParams.add(str);
             }
         }
@@ -409,10 +435,25 @@ public class ModelUtil {
             sqlUpdate.append("update ").append(config.getLocalTable()).append(" set ");
             for (int i = 0; i < config.getLocalFields().length; i++) {
                 sqlUpdate.append(StrUtil.format("{}=", config.getLocalFields()[i]));
-                if (config.getDoubleIndex().contains(i) && StrUtil.isBlank(data.getString(config.getRemoteFields()[i]))) {
-                    sqlUpdate.append("'0',");
+                String str = data.getString(config.getRemoteFields()[i]);
+                if (config.getDoubleFields().contains(config.getLocalFields()[i])) {
+                    // 判断是否是浮点数字段
+                    if (StrUtil.isBlank(str)) {
+                        // 是否为空
+                        sqlUpdate.append("null,");
+                    } else if (NumberUtil.isNumber(str)) {
+                        // 是否为数字
+                        sqlUpdate.append(StrUtil.format("'{}',", str));
+                    } else if (JsonUtil.isScientificNotation(str)) {
+                        // 是否为科学计数法
+                        sqlUpdate.append(StrUtil.format("'{}',", JsonUtil.convertScientificNotationToNormalString(str)));
+                    } else {
+                        // 不是数字屏蔽掉
+                        sqlUpdate.append("null,");
+                    }
                 } else {
-                    sqlUpdate.append(StrUtil.format("'{}',", data.getString(config.getRemoteFields()[i])));
+                    // 其他数据正常处理
+                    sqlUpdate.append(StrUtil.format("'{}',", str));
                 }
             }
             if (ObjectUtil.isNotNull(config.getFormModeId())) {

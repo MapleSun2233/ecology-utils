@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author slf
@@ -17,5 +18,6 @@ public class SyncWriteDataConfig {
     private String localOnlyCheckField;
     private String remoteOnlyCheckField;
     private List<Integer> doubleIndex;
+    private Set<String> doubleFields;
     private Integer formModeId;
 }
