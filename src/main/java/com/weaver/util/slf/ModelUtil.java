@@ -89,6 +89,9 @@ public class ModelUtil {
      * @param isUpdate 是否更新
      */
     private static void batchWriteDataHandler(SyncWriteDataConfig config, JSONArray data, int userId, boolean isUpdate, boolean isInsert) {
+        if (ObjectUtil.isNull(config.getDoubleFields())) {
+            config.setDoubleFields(getDoubleFields(config.getLocalTable()));
+        }
         UTILS.writeLog("SyncWriteDataConfig: " + config.toString());
         UTILS.writeLog(StrUtil.format("creator: {}, 开始写入数据...", userId));
         RecordSet rs = new RecordSet();
@@ -152,6 +155,9 @@ public class ModelUtil {
      * @param isSkip   是否跳过
      */
     public static void batchWriteDetail(SyncWriteDataConfig config, String mainId, JSONArray data, boolean isUpdate, boolean isSkip) {
+        if (ObjectUtil.isNull(config.getDoubleFields())) {
+            config.setDoubleFields(getDoubleFields(config.getLocalTable()));
+        }
         UTILS.writeLog("SyncWriteDataConfig: " + config.toString());
         RecordSet rs = new RecordSet();
         if (isUpdate) {
