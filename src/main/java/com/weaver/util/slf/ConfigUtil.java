@@ -34,7 +34,7 @@ public class ConfigUtil {
             List<String> lines = FileUtil.readUtf8Lines(path);
             lines.stream()
                     .filter(StrUtil::isNotBlank)
-                    .filter(line -> !StrUtil.startWithAny(line, "#", "=") && !StrUtil.endWith(line, "=") && StrUtil.contains(line, "="))
+                    .filter(line -> !StrUtil.startWithAny(line, "#", "=") && StrUtil.contains(line, "="))
                     .forEach(line -> {
                         int index = line.indexOf('=');
                         config.put(line.substring(0, index), line.substring(index+1));
@@ -212,7 +212,7 @@ public class ConfigUtil {
         Map<String, String> config = new HashMap<>(contentArr.length);
         Arrays.stream(contentArr)
                 .filter(StrUtil::isNotBlank)
-                .filter(line -> !StrUtil.startWithAny(line, "#", "=") && !StrUtil.endWith(line, "=") && StrUtil.contains(line, "="))
+                .filter(line -> !StrUtil.startWithAny(line, "#", "=") && StrUtil.contains(line, "="))
                 .forEach(line -> {
                     int index = line.indexOf('=');
                     config.put(line.substring(0, index).trim(), line.substring(index+1).trim());
