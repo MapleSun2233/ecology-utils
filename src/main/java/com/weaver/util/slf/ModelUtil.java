@@ -459,7 +459,11 @@ public class ModelUtil {
                     }
                 } else {
                     // 其他数据正常处理
-                    sqlUpdate.append(StrUtil.format("'{}',", str));
+                    if (ObjectUtil.isNull(str)) {
+                        sqlUpdate.append("null,");
+                    } else {
+                        sqlUpdate.append(StrUtil.format("'{}',", str));
+                    }
                 }
             }
             if (ObjectUtil.isNotNull(config.getFormModeId())) {
