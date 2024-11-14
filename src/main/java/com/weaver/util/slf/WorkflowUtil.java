@@ -377,27 +377,32 @@ public class WorkflowUtil {
     /**
      * 流程退回
      * @param requestId
+     * @param remark
      * @return
      */
-    public static int rejectWorkflow(int requestId) {
+    public static int rejectWorkflow(int requestId, String remark) {
         RecordSet rs = new RecordSet();
         ValidatorUtil.validate(rs.executeQuery("select userid from workflow_currentoperator where requestid = ? order by receivedate desc, receivetime desc", requestId) && rs.next(), BooleanUtil::isFalse, "当前流程无操作者");
         int userId = rs.getInt(1);
-        return rejectWorkflow(requestId, userId);
+        return rejectWorkflow(requestId, userId, remark);
     }
     /**
      * 流程退回
      * @param requestId
      * @param userId
+     * @param remark
      * @return
      */
-    public static int rejectWorkflow(int requestId, int userId) {
+    public static int rejectWorkflow(int requestId, int userId, String remark) {
         WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
         User user = User.getUser(userId, 0);
         ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
         entity.setRequestId(requestId);
         entity.setUserId(userId);
         entity.setClientIp("0:0:0:0:0:0:0:1");
+        if (StrUtil.isNotBlank(remark)) {
+            entity.setRemark(remark.replaceAll("\"", "\\\"").replaceAll("'", "\\'").replaceAll("\\?", StrUtil.EMPTY));
+        }
         PAResponseEntity entityResult = operatePa.rejectRequest(user, entity);
         if (!entityResult.getCode().equals(PAResponseCode.SUCCESS)) {
             handleResponseEntityForFailure(entityResult, "流程退回失败，请检查参数信息");
@@ -426,9 +431,9 @@ public class WorkflowUtil {
                 userId = DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, userId, userIdConvertStrategy);
                 UTILS.writeLog("converted operatorId: " + userId);
             }
-            return WorkflowUtil.rejectWorkflow(requestId, NumberUtil.parseInt(userId));
+            return WorkflowUtil.rejectWorkflow(requestId, NumberUtil.parseInt(userId), rejectEntity.getString("remark"));
         } else {
-            return WorkflowUtil.rejectWorkflow(requestId);
+            return WorkflowUtil.rejectWorkflow(requestId, rejectEntity.getString("remark"));
         }
     }
 
