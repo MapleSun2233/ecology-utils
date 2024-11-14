@@ -404,6 +404,33 @@ public class WorkflowUtil {
         }
         return requestId;
     }
+    /**
+     * 流程退回
+     * @param rejectEntity
+     * @param dataConvertStrategy
+     * @return
+     */
+    public static int rejectWorkflowV2(JSONObject rejectEntity, Map<String, String> dataConvertStrategy) {
+        ValidatorUtil.validate(rejectEntity, ObjectUtil::isNull, "提交数据实体不能为空");
+        WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
+        ValidatorUtil.builder()
+                .append(operatePa, ObjectUtil::isNull, "WorkflowRequestOperatePA获取失败")
+                .append(StrUtil.isBlank(rejectEntity.getString("requestId")), BooleanUtil::isTrue, "必要参数requestId缺失")
+                .append(NumberUtil.isInteger(rejectEntity.getString("requestId")), BooleanUtil::isFalse, "requestId数据值不合法")
+                .validate();
+        int requestId = rejectEntity.getIntValue("requestId");
+        String userId = rejectEntity.getString("operator");
+        String userIdConvertStrategy = rejectEntity.getString("operatorConvertStrategy");
+        if (StrUtil.isNotBlank(userId)) {
+            if (StrUtil.isNotBlank(userIdConvertStrategy)) {
+                userId = DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, userId, userIdConvertStrategy);
+                UTILS.writeLog("converted operatorId: " + userId);
+            }
+            return WorkflowUtil.rejectWorkflow(requestId, NumberUtil.parseInt(userId));
+        } else {
+            return WorkflowUtil.rejectWorkflow(requestId);
+        }
+    }
 
     /**
      * 处理流程操作错误信息
