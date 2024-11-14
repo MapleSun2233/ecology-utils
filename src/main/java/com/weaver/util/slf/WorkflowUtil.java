@@ -1,6 +1,7 @@
 package com.weaver.util.slf;
 
 import cn.hutool.core.map.MapUtil;
+import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
@@ -369,6 +370,37 @@ public class WorkflowUtil {
         UTILS.writeLog("responseEntity :: " + JSONObject.toJSONString(responseEntity));
         if (!responseEntity.getCode().equals(PAResponseCode.SUCCESS)) {
             handleResponseEntityForFailure(responseEntity, "流程提交失败，请检查参数信息");
+        }
+        return requestId;
+    }
+
+    /**
+     * 流程退回
+     * @param requestId
+     * @return
+     */
+    public static int rejectWorkflow(int requestId) {
+        RecordSet rs = new RecordSet();
+        ValidatorUtil.validate(rs.executeQuery("select userid from workflow_currentoperator where requestid = ? order by receivedate desc, receivetime desc", requestId) && rs.next(), BooleanUtil::isFalse, "当前流程无操作者");
+        int userId = rs.getInt(1);
+        return rejectWorkflow(requestId, userId);
+    }
+    /**
+     * 流程退回
+     * @param requestId
+     * @param userId
+     * @return
+     */
+    public static int rejectWorkflow(int requestId, int userId) {
+        WorkflowRequestOperatePA operatePa = ServiceUtil.getService(WorkflowRequestOperatePAImpl.class);
+        User user = User.getUser(userId, 0);
+        ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
+        entity.setRequestId(requestId);
+        entity.setUserId(userId);
+        entity.setClientIp("0:0:0:0:0:0:0:1");
+        PAResponseEntity entityResult = operatePa.rejectRequest(user, entity);
+        if (!entityResult.getCode().equals(PAResponseCode.SUCCESS)) {
+            handleResponseEntityForFailure(entityResult, "流程退回失败，请检查参数信息");
         }
         return requestId;
     }
