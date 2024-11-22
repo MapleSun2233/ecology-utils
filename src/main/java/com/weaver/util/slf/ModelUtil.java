@@ -593,7 +593,7 @@ public class ModelUtil {
      * @param formId
      * @return
      */
-    public String getTableNameByFormId(int formId) {
+    public static String getTableNameByFormId(int formId) {
         RecordSet rs = new RecordSet();
         ValidatorUtil.validate(rs.executeQuery("select tablename from workflow_bill where id = ?", formId) && rs.next(), BooleanUtil::isFalse, "数据表名获取失败, formId: " + formId);
         return rs.getString(1);
