@@ -3,10 +3,7 @@ package com.weaver.util.slf;
 import cn.hutool.core.date.DatePattern;
 import cn.hutool.core.date.DateTime;
 import cn.hutool.core.map.MapUtil;
-import cn.hutool.core.util.ArrayUtil;
-import cn.hutool.core.util.NumberUtil;
-import cn.hutool.core.util.ObjectUtil;
-import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.*;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.weaver.util.slf.entity.SyncWriteDataConfig;
@@ -588,5 +585,17 @@ public class ModelUtil {
             return rs.getInt(1);
         }
         return -1;
+    }
+
+
+    /**
+     * 获取表名
+     * @param formId
+     * @return
+     */
+    public String getTableNameByFormId(int formId) {
+        RecordSet rs = new RecordSet();
+        ValidatorUtil.validate(rs.executeQuery("select tablename from workflow_bill where id = ?", formId) && rs.next(), BooleanUtil::isFalse, "数据表名获取失败, formId: " + formId);
+        return rs.getString(1);
     }
 }
