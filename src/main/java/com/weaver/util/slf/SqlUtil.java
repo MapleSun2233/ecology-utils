@@ -23,12 +23,21 @@ public class SqlUtil {
      * @return jsonArr
      */
     public static JSONArray executeAndToJson(String sql) {
+        return executeAndToJson(sql, new Object[0]);
+    }
+    /**
+     * 执行任意sql结果转jsonArr
+     * @param sql sql
+     * @param params params
+     * @return jsonArr
+     */
+    public static JSONArray executeAndToJson(String sql, Object[] params) {
         ValidatorUtil.builder()
                 .append(sql.toLowerCase(), s -> !s.startsWith("select"), "sql配置错误，该方式禁止用于修改数据！")
                 .append(sql.toLowerCase(), s -> Arrays.stream(SENSITIVE_WORDS).anyMatch(s::contains), "疑似SQL注入攻击，已拦截！")
                 .validate();
         RecordSet rs = new RecordSet();
-        if (!rs.executeQuery(sql)) {
+        if (!rs.executeQuery(sql, params)) {
             UTILS.writeLog("SQL执行出错 :: " + sql);
             throw new RuntimeException("SQL执行出错，请检查SQL配置");
         }
