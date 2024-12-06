@@ -10,7 +10,6 @@ import weaver.conn.RecordSet;
 import weaver.general.BaseBean;
 import weaver.general.GCONST;
 
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 /**
@@ -18,7 +17,7 @@ import java.util.*;
  * 配置工具
  */
 public class ConfigUtil {
-    private static final int EXPIRE = 3;
+    private static final int EXPIRE = 180;
     private static final BaseBean UTILS = new BaseBean();
     private static String normalConfigTable = "uf_kfffpzgl";
 
@@ -57,7 +56,7 @@ public class ConfigUtil {
             return (Map<String, String>)CacheUtil.get(path, Map.class);
         } else {
             Map<String, String> config = readPropertiesConfig(fileName);
-            CacheUtil.set(path, config, EXPIRE, ChronoUnit.MINUTES);
+            CacheUtil.set(path, config, EXPIRE);
             return config;
         }
     }
@@ -105,7 +104,7 @@ public class ConfigUtil {
             return CacheUtil.get(path, JSONObject.class);
         } else {
             JSONObject res = readJsonConfig(fileName);
-            CacheUtil.set(path, res, EXPIRE, ChronoUnit.MINUTES);
+            CacheUtil.set(path, res, EXPIRE);
             return res;
         }
     }
@@ -121,7 +120,7 @@ public class ConfigUtil {
             return CacheUtil.get(path, JSONArray.class);
         } else {
             JSONArray res = readJsonArrConfig(fileName);
-            CacheUtil.set(path, res, EXPIRE, ChronoUnit.MINUTES);
+            CacheUtil.set(path, res, EXPIRE);
             return res;
         }
     }
@@ -217,7 +216,7 @@ public class ConfigUtil {
                     int index = line.indexOf('=');
                     config.put(line.substring(0, index).trim(), line.substring(index+1).trim());
                 });
-        CacheUtil.set(serviceName, config, EXPIRE, ChronoUnit.MINUTES);
+        CacheUtil.set(serviceName, config, EXPIRE);
         return config;
     }
 
@@ -232,7 +231,7 @@ public class ConfigUtil {
             return CacheUtil.get(serviceName, JSONObject.class);
         }
         JSONObject config = JSONObject.parseObject(readConfigContentFromTableByServiceName(serviceName));
-        CacheUtil.set(serviceName, config, EXPIRE, ChronoUnit.MINUTES);
+        CacheUtil.set(serviceName, config, EXPIRE);
         return config;
     }
 
@@ -247,7 +246,7 @@ public class ConfigUtil {
             return CacheUtil.get(serviceName, JSONArray.class);
         }
         JSONArray config = JSONArray.parseArray(readConfigContentFromTableByServiceName(serviceName));
-        CacheUtil.set(serviceName, config, EXPIRE, ChronoUnit.MINUTES);
+        CacheUtil.set(serviceName, config, EXPIRE);
         return config;
     }
 }
