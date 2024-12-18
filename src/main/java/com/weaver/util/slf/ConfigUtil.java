@@ -21,6 +21,19 @@ public class ConfigUtil {
     private static final BaseBean UTILS = new BaseBean();
     private static String normalConfigTable = "uf_kfffpzgl";
 
+
+    static {
+        try {
+            String tableName = UTILS.getPropValue(ConfigUtil.class.getSimpleName(), "tableName");
+            if (StrUtil.isNotBlank(tableName)) {
+                normalConfigTable = tableName;
+            }
+        } catch (Exception e) {
+            UTILS.writeLog("fail to init config: " + e.getMessage());
+        }
+        UTILS.writeLog("ConfigUtil use table: " + normalConfigTable);
+    }
+
     /**
      * 读取配置
      * @param fileName 配置文件名
