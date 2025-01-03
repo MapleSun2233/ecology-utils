@@ -17,6 +17,8 @@ import com.engine.workflow.publicApi.WorkflowRequestOperatePA;
 import com.engine.workflow.publicApi.impl.WorkflowRequestOperatePAImpl;
 import weaver.conn.RecordSet;
 import weaver.general.BaseBean;
+import weaver.general.DateUtil;
+import weaver.general.Util;
 import weaver.hrm.User;
 import weaver.soa.workflow.request.DetailTable;
 import weaver.soa.workflow.request.Property;
@@ -171,6 +173,31 @@ public class WorkflowUtil {
     }
 
     /**
+     * 创建流程title
+     * @param workflowId
+     * @param user
+     * @return
+     */
+    public static String createRequestName(String workflowId, User user) {
+        String title = new DateUtil().getWFTitleNew(workflowId, String.valueOf(user.getUID()), user.getLastname(), user.getLogintype());
+        title = Util.toScreenToEdit(title, user.getLanguage());
+        return title;
+    }
+
+    /**
+     * 创建流程title
+     * @param workflowId
+     * @param userId
+     * @return
+     */
+    public static String createRequestName(String workflowId, int userId) {
+        User user = User.getUser(userId, 0);
+        String title = new DateUtil().getWFTitleNew(workflowId, String.valueOf(user.getUID()), user.getLastname(), user.getLogintype());
+        title = Util.toScreenToEdit(title, user.getLanguage());
+        return title;
+    }
+
+    /**
      * 创建流程， 该用户必须具有流程创建权限
      *
      * @param createEntity createEntity
@@ -187,9 +214,12 @@ public class WorkflowUtil {
         String title = createEntity.getString("title");
         ValidatorUtil.builder()
                 .append(tableName, StrUtil::isBlank, "流程数据表获取失败")
-                .append(title, StrUtil::isBlank, "流程标题不能为空")
                 .validate();
         User user = HrmUtil.getUserCompatibleWorkCode(userId, isWorkCode);
+        if (StrUtil.isBlank(title)) {
+            title = createRequestName(String.valueOf(workflowId), user);
+            UTILS.writeLog("create default workflow name: " + title);
+        }
         ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
         entity.setWorkflowId(workflowId);
         entity.setRequestName(title);
@@ -283,13 +313,16 @@ public class WorkflowUtil {
         ValidatorUtil.builder()
                 .append(userId, StrUtil::isBlank, "操作者operator不能为空")
                 .append(tableName, StrUtil::isBlank, "流程数据表获取失败")
-                .append(title, StrUtil::isBlank, "流程标题不能为空")
                 .validate();
         if (StrUtil.isNotBlank(userIdConvertStrategy)) {
             userId = DataConvertUtil.convertDataByStrategySql(dataConvertStrategy, userId, userIdConvertStrategy);
         }
         UTILS.writeLog("converted operatorId: " + userId);
         User user = User.getUser(NumberUtil.parseInt(userId), 0);
+        if (StrUtil.isBlank(title)) {
+            title = createRequestName(String.valueOf(workflowId), user);
+            UTILS.writeLog("create default workflow name: " + title);
+        }
         ReqOperateRequestEntity entity = new ReqOperateRequestEntity();
         entity.setWorkflowId(workflowId);
         entity.setRequestName(title);
