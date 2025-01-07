@@ -6,11 +6,10 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSONObject;
 import weaver.conn.RecordSet;
+import weaver.general.BaseBean;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,6 +21,7 @@ import java.util.regex.Pattern;
 public class DataConvertUtil {
     public static String ZERO = "0";
     public static String PLACE_HOLDER_PATTERN = "\\$\\{(\\w+)\\}";
+    private static final BaseBean UTILS = new BaseBean();
 
     /**
      * 非法字符串返回0字符串，用于合法化数值类型入参
@@ -152,39 +152,44 @@ public class DataConvertUtil {
         if (StrUtil.isBlank(data)) {
             return null;
         }
+        String result = null;
         RecordSet rs = new RecordSet();
-        List<String> idList = new ArrayList<>();
+        Set<String> idList = new LinkedHashSet<>();
         if (strategyName.endsWith("_multiple")) {
             String finalStrategyName = strategyName.substring(0, strategyName.length() - 9);
             ValidatorUtil.validate(dataConvertStrategy.containsKey(finalStrategyName), BooleanUtil::isFalse, StrUtil.format("未找到数据转换策略{}， 请联系管理员添加数据转换策略", finalStrategyName));
             String convertSql = dataConvertStrategy.get(finalStrategyName);
+            String[] paramArr = data.split(StrUtil.COMMA);
             if (convertSql.contains("{}")) {
-                for (String param : data.split(StrUtil.COMMA)) {
+                for (String param : paramArr) {
                     if (rs.executeQuery(StrUtil.format(convertSql, param)) && rs.next()) {
                         idList.add(rs.getString(1));
                     }
                 }
             } else {
-                for (String param : data.split(StrUtil.COMMA)) {
+                for (String param : paramArr) {
                     if (rs.executeQuery(convertSql, param) && rs.next()) {
                         idList.add(rs.getString(1));
                     }
                 }
             }
-            return idList.isEmpty() ? null : StrUtil.join(StrUtil.COMMA, idList);
+            if (!idList.isEmpty()) {
+                result = StrUtil.join(StrUtil.COMMA, idList);
+            }
         } else {
             ValidatorUtil.validate(dataConvertStrategy.containsKey(strategyName), BooleanUtil::isFalse, StrUtil.format("未找到数据转换策略{}， 请联系管理员添加数据转换策略", strategyName));
             String convertSql = dataConvertStrategy.get(strategyName);
             if (convertSql.contains("{}")) {
                 if (rs.executeQuery(StrUtil.format(convertSql, data)) && rs.next()) {
-                    return rs.getString(1);
+                    result = rs.getString(1);
                 }
             } else {
                 if (rs.executeQuery(convertSql, data) && rs.next()) {
-                    return rs.getString(1);
+                    result = rs.getString(1);
                 }
             }
         }
-        return null;
+        UTILS.writeLog(StrUtil.format("convert {} to {}", data, result));
+        return result;
     }
 }

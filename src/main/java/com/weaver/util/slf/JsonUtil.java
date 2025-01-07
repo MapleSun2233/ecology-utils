@@ -12,6 +12,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.regex.Pattern;
 
 /**
@@ -40,7 +41,7 @@ public class JsonUtil {
             is.close();
             String json = bos.toString("UTF-8");
             // 消除可能因为安全机制导致的字符全角
-            json = Convert.toDBC(json);
+            json = Convert.toDBC(json, Collections.singleton('，'));
             return JSONObject.parseObject(json);
         } catch (Exception e) {
             throw new RuntimeException("json body读取错误");
