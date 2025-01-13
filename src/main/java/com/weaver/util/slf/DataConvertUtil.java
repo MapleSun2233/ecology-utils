@@ -114,21 +114,6 @@ public class DataConvertUtil {
         }
         return templateStr;
     }
-    /**
-     * 处理占位符并注入数据
-     * @param templateStr 模板字符串
-     * @param data data
-     * @return handledStr
-     */
-    public static String handlePlaceHolderAndInjectData(String templateStr, JSONObject data) {
-        Pattern pattern = Pattern.compile(PLACE_HOLDER_PATTERN);
-        Matcher matcher = pattern.matcher(templateStr);
-        while (matcher.find()) {
-            String value = ObjectUtil.isNull(data.getString(matcher.group(1))) ? StrUtil.EMPTY : data.getString(matcher.group(1));
-            templateStr = templateStr.replaceAll(convertPlaceHolder(matcher.group(0)), value);
-        }
-        return templateStr;
-    }
 
     /**
      * 转义展位符
