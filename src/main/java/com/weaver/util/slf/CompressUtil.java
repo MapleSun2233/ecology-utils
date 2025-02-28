@@ -47,15 +47,55 @@ public class CompressUtil {
     }
 
     /**
-     * 压缩指定目录下的所有文件为tar包
+     * 压缩多文件为tar包
+     * @param files
+     * @param targetTar
+     * @return
+     */
+    public static boolean tar(File[] files, File targetTar) {
+        try (FileOutputStream fos = new FileOutputStream(targetTar);
+             TarArchiveOutputStream tos = new TarArchiveOutputStream(fos)) {
+            if (ArrayUtil.isNotEmpty(files)) {
+                for (File file : files) {
+                    tarRecursive(tos, file, "");
+                }
+            }
+            return true;
+        } catch (IOException e) {
+            UTILS.writeLog("Fail to tar, error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 压缩指定目录下的所有文件为tar包，默认不包含源目录，sourceDir为文件时包含源目录无效
      * @param sourceDir
      * @param targetTar
      * @return
      */
     public static boolean tar(File sourceDir, File targetTar) {
+        return tar(sourceDir, targetTar, false);
+    }
+    /**
+     * 压缩指定目录下的所有文件为tar包
+     * @param sourceDir
+     * @param targetTar
+     * @param includeSourceDir 是否包含源目录，sourceDir为文件时该参数无效
+     * @return
+     */
+    public static boolean tar(File sourceDir, File targetTar, boolean includeSourceDir) {
         try (FileOutputStream fos = new FileOutputStream(targetTar);
              TarArchiveOutputStream tos = new TarArchiveOutputStream(fos)) {
-            tarRecursive(tos, sourceDir, "");
+            if (sourceDir.isFile() || includeSourceDir) {
+                tarRecursive(tos, sourceDir, "");
+            } else {
+                File[] files = sourceDir.listFiles();
+                if (ArrayUtil.isNotEmpty(files)) {
+                    for (File file : files) {
+                        tarRecursive(tos, file, "");
+                    }
+                }
+            }
             return true;
         } catch (IOException e) {
             UTILS.writeLog("Fail to tar, error: " + e.getMessage());
