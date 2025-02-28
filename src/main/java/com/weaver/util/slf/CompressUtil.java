@@ -2,13 +2,13 @@ package com.weaver.util.slf;
 
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.IoUtil;
+import cn.hutool.core.util.ArrayUtil;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.commons.io.FileUtils;
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import weaver.general.BaseBean;
 
-import java.io.File;
-import java.io.InputStream;
+import java.io.*;
 
 public class CompressUtil {
     private static BaseBean UTILS = new BaseBean();
@@ -24,7 +24,8 @@ public class CompressUtil {
             if (!outDir.exists()) {
                 FileUtil.mkParentDirs(outDir);
             }
-            try (InputStream is = FileUtil.getInputStream(sourceFile); TarArchiveInputStream tis = new TarArchiveInputStream(is)) {
+            try (InputStream is = FileUtil.getInputStream(sourceFile);
+                 TarArchiveInputStream tis = new TarArchiveInputStream(is)) {
                 TarArchiveEntry entry;
                 while ((entry = tis.getNextTarEntry()) != null) {
                     File file = new File(outDir, entry.getName());
@@ -46,22 +47,48 @@ public class CompressUtil {
     }
 
     /**
-     * 尝试删除文件对象所指向的文件或文件夹
-     * @param file
+     * 压缩指定目录下的所有文件为tar包
+     * @param sourceDir
+     * @param targetTar
+     * @return
      */
-    public static void deleteFile(File file) {
-        if (file.isDirectory()) {
-            try {
-                UTILS.writeLog("try to delete dir: " + file.getAbsolutePath());
-                FileUtils.deleteDirectory(file);
-            } catch (Exception e) {
-                UTILS.writeLog("fail to delete dir, error : " + e.getMessage());
+    public static boolean tar(File sourceDir, File targetTar) {
+        try (FileOutputStream fos = new FileOutputStream(targetTar);
+             TarArchiveOutputStream tos = new TarArchiveOutputStream(fos)) {
+            tarRecursive(tos, sourceDir, "");
+            return true;
+        } catch (IOException e) {
+            UTILS.writeLog("Fail to tar, error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 递归遍历文件夹
+     * @param tos
+     * @param srcFile
+     * @param basePath
+     * @throws IOException
+     */
+    private static void tarRecursive(TarArchiveOutputStream tos, File srcFile, String basePath) throws IOException {
+        if (srcFile.isDirectory()) {
+            File[] files = srcFile.listFiles();
+            String nextBasePath = basePath + srcFile.getName() + "/";
+            if (ArrayUtil.isEmpty(files)) {
+                // 空目录
+                TarArchiveEntry entry = new TarArchiveEntry(srcFile, nextBasePath);
+                tos.putArchiveEntry(entry);
+                tos.closeArchiveEntry();
+            } else {
+                for (File file : files) {
+                    tarRecursive(tos, file, nextBasePath);
+                }
             }
         } else {
-            UTILS.writeLog("try to delete file: " + file.getAbsolutePath());
-            if (file.delete() == false) {
-                UTILS.writeLog("fail to delete file, error : " + file.getAbsolutePath());
-            }
+            TarArchiveEntry entry = new TarArchiveEntry(srcFile, basePath + srcFile.getName());
+            tos.putArchiveEntry(entry);
+            IoUtil.write(tos, false, FileUtil.readBytes(srcFile));
+            tos.closeArchiveEntry();
         }
     }
 }
